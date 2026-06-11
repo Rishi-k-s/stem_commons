@@ -113,7 +113,10 @@ export function LandingPage() {
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            onSearch={() => navigate("/resources")}
+            onSearch={() => {
+              const q = searchQuery.trim();
+              navigate(q ? `/resources?q=${encodeURIComponent(q)}` : "/resources");
+            }}
           />
         </div>
 
@@ -192,12 +195,12 @@ export function LandingPage() {
           alignItems: "center",
           justifyContent: "space-between",
           flexShrink: 0,
-          borderTop: `3px solid ${theme.colors.primary}`,
+          borderTop: `3px solid ${theme.colors.secondary}`,
           position: "relative",
           zIndex: 10,
         }}
       >
-        <p style={{ fontFamily: theme.fonts.mono, fontSize: theme.fontSizes.xs, color: "rgba(255,255,255,0.4)", margin: 0 }}>
+        <p style={{ fontFamily: theme.fonts.mono, fontSize: theme.fontSizes.xs, color: "rgba(255,255,255,0.6)", margin: 0 }}>
           © 2026 STEM COMMONS. ALL RIGHTS RESERVED.
         </p>
         <div style={{ display: "flex", gap: "28px" }}>
@@ -209,7 +212,7 @@ export function LandingPage() {
                 fontFamily: theme.fonts.heading,
                 fontSize: theme.fontSizes.xs,
                 letterSpacing: theme.letterSpacing.normal,
-                color: theme.colors.primary,
+                color: theme.colors.textInverse,
                 textDecoration: "none",
               }}
             >

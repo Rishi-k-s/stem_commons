@@ -1,21 +1,88 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { Header } from "../components/common/Header";
 import { Button } from "../components/common/Button";
+import { Badge } from "../components/common/Badge";
 import { theme } from "../styles/theme";
+import {
+  resources,
+  statusVariant,
+  RESOURCE_TYPES,
+  RESOURCE_STATUSES,
+  type ResourceType,
+  type ResourceStatus,
+} from "../data/resources";
 
-// Mock data
-const resources = [
-  { id: 1, name: "FabLab IIT Delhi", type: "Makerspace", city: "New Delhi", state: "Delhi", status: "Working" },
-  { id: 2, name: "ATAL Tinkering Lab — KV No. 1", type: "ATAL Lab", city: "Mumbai", state: "Maharashtra", status: "Working" },
-  { id: 3, name: "Tinkerers' Paradise", type: "Makerspace", city: "Bangalore", state: "Karnataka", status: "Working" },
-  { id: 4, name: "STEM Ventures India", type: "Vendor", city: "Pune", state: "Maharashtra", status: "Working" },
-  { id: 5, name: "ATAL Innovation Centre Chennai", type: "ATAL Lab", city: "Chennai", state: "Tamil Nadu", status: "Working" },
-];
+type SortKey = "name-asc" | "name-desc" | "recent";
 
 export function ResourcesPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [query, setQuery] = React.useState(searchParams.get("q") ?? "");
+  const [typeFilters, setTypeFilters] = React.useState<Set<ResourceType>>(new Set());
+  const [statusFilters, setStatusFilters] = React.useState<Set<ResourceStatus>>(new Set());
+  const [sort, setSort] = React.useState<SortKey>("name-asc");
+
+  // Keep the URL ?q= in sync so the search is shareable / survives reloads.
+  React.useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (query) next.set("q", query);
+    else next.delete("q");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  const toggle = <T,>(set: Set<T>, value: T): Set<T> => {
+    const next = new Set(set);
+    next.has(value) ? next.delete(value) : next.add(value);
+    return next;
+  };
+
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = resources.filter((r) => {
+      const matchesQuery =
+        !q ||
+        r.name.toLowerCase().includes(q) ||
+        r.city.toLowerCase().includes(q) ||
+        r.state.toLowerCase().includes(q) ||
+        r.type.toLowerCase().includes(q) ||
+        r.facilities.some((f) => f.toLowerCase().includes(q));
+      const matchesType = typeFilters.size === 0 || typeFilters.has(r.type);
+      const matchesStatus = statusFilters.size === 0 || statusFilters.has(r.status);
+      return matchesQuery && matchesType && matchesStatus;
+    });
+
+    return [...list].sort((a, b) => {
+      if (sort === "name-asc") return a.name.localeCompare(b.name);
+      if (sort === "name-desc") return b.name.localeCompare(a.name);
+      return b.id - a.id; // recent
+    });
+  }, [query, typeFilters, statusFilters, sort]);
+
+  const hasActiveFilters =
+    query.trim() !== "" || typeFilters.size > 0 || statusFilters.size > 0;
+
+  const clearAll = () => {
+    setQuery("");
+    setTypeFilters(new Set());
+    setStatusFilters(new Set());
+  };
+
+  const chip = (active: boolean): React.CSSProperties => ({
+    fontFamily: theme.fonts.mono,
+    fontSize: "0.68rem",
+    letterSpacing: theme.letterSpacing.wide,
+    padding: "6px 12px",
+    cursor: "pointer",
+    border: `1px solid ${active ? theme.colors.primary : theme.colors.border}`,
+    background: active ? theme.colors.primary : theme.colors.surface,
+    color: active ? theme.colors.textInverse : theme.colors.textMuted,
+    transition: "all 0.12s",
+    userSelect: "none",
+  });
 
   return (
     <div
@@ -41,7 +108,7 @@ export function ResourcesPage() {
           padding: "48px 32px",
         }}
       >
-        <div style={{ marginBottom: "32px", display: "flex", alignItems: "center", gap: "16px" }}>
+        <div style={{ marginBottom: "24px", display: "flex", alignItems: "center", gap: "16px" }}>
           <button
             onClick={() => navigate("/")}
             style={{
@@ -72,95 +139,238 @@ export function ResourcesPage() {
           </h1>
         </div>
 
-        {/* Resources Grid */}
+        {/* Search input */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-            gap: "24px",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            border: `1px solid ${theme.colors.borderStrong}`,
+            background: theme.colors.surface,
+            padding: "10px 14px",
+            marginBottom: "16px",
           }}
         >
-          {resources.map((resource) => (
-            <div
-              key={resource.id}
-              onClick={() => navigate(`/resource/${resource.id}`)}
+          <Search size={18} style={{ color: theme.colors.textMuted, flexShrink: 0 }} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name, city, state, type, or facility…"
+            style={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontFamily: theme.fonts.body,
+              fontSize: "0.95rem",
+              color: theme.colors.text,
+            }}
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
               style={{
-                background: theme.colors.surface,
-                border: `1px solid ${theme.colors.border}`,
-                padding: "24px",
+                background: "none",
+                border: "none",
                 cursor: "pointer",
-                transition: "box-shadow 0.15s",
+                color: theme.colors.textMuted,
+                display: "flex",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.1)")}
-              onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "start",
-                  marginBottom: "12px",
-                }}
-              >
-                <h3
-                  style={{
-                    fontFamily: theme.fonts.heading,
-                    fontSize: theme.fontSizes.md,
-                    fontWeight: 700,
-                    margin: 0,
-                    color: theme.colors.text,
-                  }}
-                >
-                  {resource.name}
-                </h3>
-                <span
-                  style={{
-                    display: "inline-block",
-                    padding: "4px 8px",
-                    background: resource.status === "Working" ? "rgba(22,101,52,0.1)" : "rgba(127,29,29,0.1)",
-                    color: resource.status === "Working" ? theme.colors.success : theme.colors.error,
-                    fontSize: "0.7rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  {resource.status}
-                </span>
-              </div>
-
-              <p
-                style={{
-                  fontFamily: theme.fonts.mono,
-                  fontSize: "0.85rem",
-                  color: "rgba(0,0,0,0.6)",
-                  margin: 0,
-                }}
-              >
-                {resource.type}
-              </p>
-
-              <p
-                style={{
-                  fontFamily: theme.fonts.body,
-                  fontSize: "0.9rem",
-                  color: theme.colors.textMuted,
-                  marginTop: "12px",
-                  margin: "12px 0",
-                }}
-              >
-                {resource.city}, {resource.state}
-              </p>
-
-              <Button
-                onClick={() => navigate(`/resource/${resource.id}`)}
-                variant="primary"
-                size="sm"
-                style={{ width: "100%", justifyContent: "center" }}
-              >
-                VIEW DETAILS
-              </Button>
-            </div>
-          ))}
+              <X size={16} />
+            </button>
+          )}
         </div>
+
+        {/* Filters */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", marginBottom: "20px" }}>
+          <div>
+            <div style={filterLabel}>TYPE</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {RESOURCE_TYPES.map((t) => (
+                <span
+                  key={t}
+                  onClick={() => setTypeFilters((s) => toggle(s, t))}
+                  style={chip(typeFilters.has(t))}
+                >
+                  {t.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={filterLabel}>STATUS</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {RESOURCE_STATUSES.map((s) => (
+                <span
+                  key={s}
+                  onClick={() => setStatusFilters((set) => toggle(set, s))}
+                  style={chip(statusFilters.has(s))}
+                >
+                  {s.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Result count + sort + clear */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "12px",
+            marginBottom: "20px",
+            paddingBottom: "16px",
+            borderBottom: `1px solid ${theme.colors.border}`,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: theme.fonts.mono,
+              fontSize: "0.75rem",
+              letterSpacing: theme.letterSpacing.wide,
+              color: theme.colors.textMuted,
+            }}
+          >
+            {filtered.length} {filtered.length === 1 ? "RESULT" : "RESULTS"}
+            {hasActiveFilters && (
+              <span
+                onClick={clearAll}
+                style={{
+                  marginLeft: "14px",
+                  color: theme.colors.primary,
+                  cursor: "pointer",
+                }}
+              >
+                CLEAR ALL
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ ...filterLabel, marginBottom: 0 }}>SORT</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              style={{
+                fontFamily: theme.fonts.mono,
+                fontSize: "0.72rem",
+                letterSpacing: theme.letterSpacing.wide,
+                padding: "6px 10px",
+                border: `1px solid ${theme.colors.border}`,
+                background: theme.colors.surface,
+                color: theme.colors.text,
+                cursor: "pointer",
+              }}
+            >
+              <option value="name-asc">NAME (A–Z)</option>
+              <option value="name-desc">NAME (Z–A)</option>
+              <option value="recent">RECENTLY ADDED</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Resources Grid / empty state */}
+        {filtered.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "64px 24px",
+              fontFamily: theme.fonts.body,
+              color: theme.colors.textMuted,
+            }}
+          >
+            <p style={{ fontSize: "1rem", margin: 0 }}>No resources match your search.</p>
+            <Button onClick={clearAll} variant="outline" size="sm" style={{ marginTop: "16px" }}>
+              CLEAR FILTERS
+            </Button>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: "24px",
+            }}
+          >
+            {filtered.map((resource) => (
+              <div
+                key={resource.id}
+                onClick={() => navigate(`/resource/${resource.id}`)}
+                style={{
+                  background: theme.colors.surface,
+                  border: `1px solid ${theme.colors.border}`,
+                  padding: "24px",
+                  cursor: "pointer",
+                  transition: "box-shadow 0.15s",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.1)")}
+                onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "start",
+                    gap: "12px",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontFamily: theme.fonts.heading,
+                      fontSize: theme.fontSizes.md,
+                      fontWeight: 700,
+                      margin: 0,
+                      color: theme.colors.text,
+                    }}
+                  >
+                    {resource.name}
+                  </h3>
+                  <Badge variant={statusVariant(resource.status)}>{resource.status}</Badge>
+                </div>
+
+                <p
+                  style={{
+                    fontFamily: theme.fonts.mono,
+                    fontSize: "0.85rem",
+                    color: "rgba(0,0,0,0.6)",
+                    margin: 0,
+                  }}
+                >
+                  {resource.type}
+                </p>
+
+                <p
+                  style={{
+                    fontFamily: theme.fonts.body,
+                    fontSize: "0.9rem",
+                    color: theme.colors.textMuted,
+                    margin: "12px 0 20px",
+                  }}
+                >
+                  {resource.city}, {resource.state}
+                </p>
+
+                <Button
+                  onClick={() => navigate(`/resource/${resource.id}`)}
+                  variant="primary"
+                  size="sm"
+                  style={{ width: "100%", justifyContent: "center", marginTop: "auto" }}
+                >
+                  VIEW DETAILS
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Footer */}
@@ -174,14 +384,14 @@ export function ResourcesPage() {
           alignItems: "center",
           justifyContent: "space-between",
           flexShrink: 0,
-          borderTop: `3px solid ${theme.colors.primary}`,
+          borderTop: `3px solid ${theme.colors.secondary}`,
         }}
       >
         <p
           style={{
             fontFamily: theme.fonts.mono,
             fontSize: theme.fontSizes.xs,
-            color: "rgba(255,255,255,0.4)",
+            color: "rgba(255,255,255,0.6)",
             margin: 0,
           }}
         >
@@ -191,3 +401,11 @@ export function ResourcesPage() {
     </div>
   );
 }
+
+const filterLabel: React.CSSProperties = {
+  fontFamily: theme.fonts.mono,
+  fontSize: "0.62rem",
+  letterSpacing: theme.letterSpacing.widest,
+  color: theme.colors.textFaint,
+  marginBottom: "8px",
+};

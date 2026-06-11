@@ -19,7 +19,7 @@ export function SearchBar({
   return (
     <div style={{ width: "100%", maxWidth: "600px" }}>
       {/* Search header label */}
-      <div style={{ background: theme.colors.secondary, fontFamily: theme.fonts.mono, fontSize: theme.fontSizes.sm, letterSpacing: theme.letterSpacing.widest, color: theme.colors.textInverse, padding: "6px 20px", textAlign: "left" }}>
+      <div style={{ background: theme.colors.primary, fontFamily: theme.fonts.mono, fontSize: theme.fontSizes.sm, letterSpacing: theme.letterSpacing.widest, color: theme.colors.textInverse, padding: "6px 20px", textAlign: "left" }}>
         SEARCH RESOURCES
       </div>
 

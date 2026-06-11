@@ -1,4 +1,3 @@
-import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Phone, Mail, Globe } from "lucide-react";
 import { Header } from "../components/common/Header";
@@ -6,47 +5,54 @@ import { Button } from "../components/common/Button";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { theme } from "../styles/theme";
-
-// Mock data
-const resourceData: Record<number, any> = {
-  1: {
-    id: 1,
-    name: "FabLab IIT Delhi",
-    type: "Makerspace",
-    city: "New Delhi",
-    state: "Delhi",
-    status: "Working",
-    description: "A comprehensive makerspace with state-of-the-art equipment and facilities for prototyping and design.",
-    contact: "fablab@iitd.ac.in",
-    phone: "+91-11-2659-1234",
-    website: "https://fablab.iitd.ac.in",
-    facilities: ["3D Printing", "Laser Cutting", "CNC Machines", "Electronics Lab"],
-  },
-  2: {
-    id: 2,
-    name: "ATAL Tinkering Lab — KV No. 1",
-    type: "ATAL Lab",
-    city: "Mumbai",
-    state: "Maharashtra",
-    status: "Working",
-    description: "ATAL Tinkering Lab focusing on innovation and entrepreneurship for young innovators.",
-    contact: "atl.kv1mum@gov.in",
-    phone: "+91-22-1234-5678",
-    website: "https://atl.gov.in",
-    facilities: ["Robotics", "Electronics Lab", "3D Printing"],
-  },
-};
+import { getResource, statusVariant } from "../data/resources";
 
 export function ResourceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const resource = resourceData[parseInt(id || "0") || 1];
+  const resource = getResource(Number(id));
 
   if (!resource) {
     return (
-      <div style={{ textAlign: "center", padding: "48px", marginTop: "100px" }}>
-        <h1>Resource not found</h1>
-        <Button onClick={() => navigate("/resources")}>Back to Resources</Button>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          background: theme.colors.background,
+        }}
+      >
+        <div style={{ height: "3px", background: theme.colors.primary, flexShrink: 0 }} />
+        <Header />
+        <main
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "16px",
+            padding: "48px",
+          }}
+        >
+          <h1
+            style={{
+              fontFamily: theme.fonts.heading,
+              fontSize: "1.6rem",
+              fontWeight: 700,
+              color: theme.colors.text,
+              margin: 0,
+            }}
+          >
+            RESOURCE NOT FOUND
+          </h1>
+          <p style={{ fontFamily: theme.fonts.body, color: theme.colors.textMuted, margin: 0 }}>
+            We couldn't find a resource with that id.
+          </p>
+          <Button onClick={() => navigate("/resources")} variant="primary">
+            BACK TO RESOURCES
+          </Button>
+        </main>
       </div>
     );
   }
@@ -122,7 +128,7 @@ export function ResourceDetail() {
                 {resource.type} • {resource.city}, {resource.state}
               </p>
             </div>
-            <Badge variant={resource.status === "Working" ? "success" : "error"}>{resource.status}</Badge>
+            <Badge variant={statusVariant(resource.status)}>{resource.status}</Badge>
           </div>
         </div>
 
@@ -281,14 +287,14 @@ export function ResourceDetail() {
           alignItems: "center",
           justifyContent: "space-between",
           flexShrink: 0,
-          borderTop: `3px solid ${theme.colors.primary}`,
+          borderTop: `3px solid ${theme.colors.secondary}`,
         }}
       >
         <p
           style={{
             fontFamily: theme.fonts.mono,
             fontSize: "0.6rem",
-            color: "rgba(255,255,255,0.4)",
+            color: "rgba(255,255,255,0.6)",
             margin: 0,
           }}
         >

@@ -8,15 +8,15 @@
 export const theme = {
   colors: {
     /* Brand accents */
-    primary: "#f3701e", // burnt orange — buttons, accents, top rules
-    primaryHover: "#d95f12", // darker orange for hover states
-    secondary: "#4b607f", // blue-gray — secondary labels/accents
+    primary: "#290087", // dark ultramarine — buttons, accents, top rules
+    primaryHover: "#1e0066", // deeper ultramarine for hover states
+    secondary: "#a230a4", // amethyst — secondary labels/accents
 
     /* Surfaces */
-    background: "#f5f2ee", // page background (warm off-white)
+    background: "#f6ffe9", // page background (honeydew)
     surface: "#ffffff", // cards, inputs
-    surfaceAlt: "#ede9e3", // stat panels, subtle alt sections
-    footer: "#1a1a1a", // dark footer
+    surfaceAlt: "#cac5e5", // stat panels, subtle alt sections (periwinkle)
+    footer: "#290087", // dark ultramarine footer
 
     /* Text */
     text: "#1a1a1a", // primary text
@@ -81,7 +81,7 @@ export const gridBg: React.CSSProperties = {
   inset: 0,
   zIndex: 0,
   backgroundImage:
-    "linear-gradient(rgba(243,112,30,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(243,112,30,0.035) 1px, transparent 1px)",
+    "linear-gradient(rgba(41,0,135,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(41,0,135,0.035) 1px, transparent 1px)",
   backgroundSize: "48px 48px",
 };
 
