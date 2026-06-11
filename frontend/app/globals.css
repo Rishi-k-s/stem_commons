@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+:root {
+  /* Colors */
+  --primary-orange: #FF6B35;
+  --deep-black: #1A1A1A;
+  --neutral-white: #FFFFFF;
+  --neutral-gray: #F5F5F5;
+  --dark-gray: #333333;
+
+  /* Status Colors */
+  --status-green: #22C55E;
+  --status-yellow: #EAB308;
+  --status-orange: #F97316;
+  --status-red: #EF4444;
+
+  /* Typography */
+  --font-heading: 'IBM Plex Sans', sans-serif;
+  --font-specifications: 'Space Mono', monospace;
+  --font-body: 'JetBrains Mono', monospace;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+}
+
+@theme inline {
+  --color-primary: var(--primary-orange);
+  --color-black: var(--deep-black);
+  --color-white: var(--neutral-white);
+  --color-gray: var(--neutral-gray);
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--neutral-white);
+  color: var(--deep-black);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 48px;
+  letter-spacing: -1px;
+}
+
+h2 {
+  font-size: 36px;
+}
+
+h3 {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+h4 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+code, pre {
+  font-family: var(--font-specifications);
+  font-size: 12px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.animate-slide-up {
+  animation: slideInUp 0.3s ease-out;
+}
+
+/* Leaflet Map Styles */
+.leaflet-container {
+  font-family: var(--font-body);
+}
+
+.leaflet-popup-content {
+  font-family: var(--font-body);
+}
+
+.leaflet-popup-close-button {
+  color: var(--deep-black) !important;
+}
