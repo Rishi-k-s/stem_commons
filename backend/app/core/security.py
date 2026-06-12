@@ -12,6 +12,7 @@ Notes
 from __future__ import annotations
 
 import datetime as dt
+import secrets
 
 import bcrypt
 import jwt
@@ -29,6 +30,11 @@ def hash_password(password: str) -> str:
     if len(pw) > _BCRYPT_MAX_BYTES:
         raise ValueError("Password must be at most 72 bytes long.")
     return bcrypt.hashpw(pw, bcrypt.gensalt()).decode("utf-8")
+
+
+def generate_temp_password(length: int = 12) -> str:
+    """Generate a URL-safe random temporary password for new owner accounts."""
+    return secrets.token_urlsafe(length)
 
 
 def verify_password(password: str, password_hash: str) -> bool:

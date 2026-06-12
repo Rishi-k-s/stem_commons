@@ -6,17 +6,41 @@ import { Button } from "../components/common/Button";
 import { SearchBar } from "../components/search/SearchBar";
 import { theme, gridBg } from "../styles/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
+import { fetchPublicStats, type PublicStats } from "../lib/api";
+
+function formatCount(n: number): string {
+  if (n === 0) return "0";
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k+`;
+  return `${n}`;
+}
 
 export function LandingPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [stats, setStats] = React.useState<PublicStats | null>(null);
 
-  const stats = [
-    { value: "250+", label: "MAKERSPACES" },
-    { value: "1,200+", label: "ATAL LABS" },
-    { value: "85+", label: "VENDORS" },
-    { value: "28", label: "STATES" },
+  React.useEffect(() => {
+    fetchPublicStats().then(setStats).catch(() => {});
+  }, []);
+
+  const statCards = [
+    {
+      value: stats ? formatCount(stats.by_type["Makerspace"] ?? 0) : "—",
+      label: "MAKERSPACES",
+    },
+    {
+      value: stats ? formatCount(stats.by_type["ATAL Lab"] ?? 0) : "—",
+      label: "ATAL LABS",
+    },
+    {
+      value: stats ? formatCount(stats.by_type["Vendor"] ?? 0) : "—",
+      label: "VENDORS",
+    },
+    {
+      value: stats ? formatCount(stats.states_count) : "—",
+      label: "STATES",
+    },
   ];
 
   return (
@@ -151,6 +175,14 @@ export function LandingPage() {
           >
             MAP VIEW <MapPin size={13} />
           </Button>
+          {/* GO to the form */}
+          <Button
+            onClick={() => navigate("/submit")}
+            variant="ghost"
+            size="md"
+          >
+            ADD A RESOURCE <ChevronRight size={13} />
+          </Button>
         </div>
 
         {/* Stats */}
@@ -165,7 +197,7 @@ export function LandingPage() {
             maxWidth: "420px",
           }}
         >
-          {stats.map((s, i) => (
+          {statCards.map((s, i) => (
             <div
               key={i}
               style={{

@@ -1,14 +1,28 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Phone, Mail, Globe, MapPin } from "lucide-react";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { Header } from "../components/common/Header";
 import { Button } from "../components/common/Button";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { theme } from "../styles/theme";
 import { fetchResource } from "../lib/api";
-import { statusVariant, type Resource } from "../data/resources";
+import { statusVariant, statusColor, type Resource } from "../data/resources";
 import { useIsMobile } from "../hooks/useMediaQuery";
+import { ClaimReportModal } from "../components/resource/ClaimReportModal";
+
+function resourcePin(resource: Resource): L.DivIcon {
+  const color = statusColor(resource.status);
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:14px;height:14px;background:${color};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 14],
+  });
+}
 
 export function ResourceDetail() {
   const { id } = useParams();
@@ -17,6 +31,7 @@ export function ResourceDetail() {
 
   const [resource, setResource] = React.useState<Resource | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [modal, setModal] = React.useState<"claim" | "report" | null>(null);
 
   React.useEffect(() => {
     let active = true;
@@ -324,20 +339,49 @@ export function ResourceDetail() {
                   Visit Website
                 </a>
               </div>
+
+              {resource.lat !== 0 && resource.lng !== 0 && (
+                <div style={{ marginTop: "16px", border: `1px solid ${theme.colors.border}`, overflow: "hidden" }}>
+                  <MapContainer
+                    center={[resource.lat, resource.lng]}
+                    zoom={14}
+                    style={{ height: "160px", width: "100%" }}
+                    zoomControl={false}
+                    dragging={false}
+                    scrollWheelZoom={false}
+                    doubleClickZoom={false}
+                    touchZoom={false}
+                    attributionControl={false}
+                  >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <Marker position={[resource.lat, resource.lng]} icon={resourcePin(resource)} />
+                  </MapContainer>
+                  <div style={{ padding: "6px 10px", background: theme.colors.surfaceAlt, borderTop: `1px solid ${theme.colors.border}` }}>
+                    <a
+                      href={`https://www.openstreetmap.org/?mlat=${resource.lat}&mlon=${resource.lng}&zoom=15`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontFamily: theme.fonts.mono, fontSize: "0.6rem", letterSpacing: theme.letterSpacing.wide, color: theme.colors.primary, textDecoration: "none" }}
+                    >
+                      OPEN IN MAPS →
+                    </a>
+                  </div>
+                </div>
+              )}
             </Card>
 
             {/* Actions */}
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "24px" }}>
               <Button
                 variant="primary"
-                onClick={() => alert("Claim functionality coming soon!")}
+                onClick={() => setModal("claim")}
                 style={{ width: "100%", justifyContent: "center" }}
               >
                 CLAIM THIS LAB
               </Button>
               <Button
                 variant="outline"
-                onClick={() => alert("Report functionality coming soon!")}
+                onClick={() => setModal("report")}
                 style={{ width: "100%", justifyContent: "center" }}
               >
                 REPORT ISSUE
@@ -346,6 +390,15 @@ export function ResourceDetail() {
           </div>
         </div>
       </main>
+
+      {modal && (
+        <ClaimReportModal
+          mode={modal}
+          resourceId={resource.id}
+          resourceName={resource.name}
+          onClose={() => setModal(null)}
+        />
+      )}
 
       {/* Footer */}
       <footer

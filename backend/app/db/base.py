@@ -9,3 +9,5 @@ from app.models.machine import Machine  # noqa: F401
 from app.models.photo import Photo  # noqa: F401
 from app.models.claim import Claim  # noqa: F401
 from app.models.report import Report  # noqa: F401
+from app.models.district_boundary import DistrictBoundary  # noqa: F401
+from app.models.activity_log import AdminActivityLog  # noqa: F401

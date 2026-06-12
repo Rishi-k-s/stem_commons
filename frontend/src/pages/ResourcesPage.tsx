@@ -38,7 +38,7 @@ export function ResourcesPage() {
   React.useEffect(() => {
     let active = true;
     setLoading(true);
-    fetchResources()
+    fetchResources(500, true)
       .then((data) => {
         if (active) {
           setResources(data);

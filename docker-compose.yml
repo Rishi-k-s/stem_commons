@@ -3,9 +3,9 @@ services:
     image: postgis/postgis:15-3.3
     container_name: stem_commons_db
     environment:
-      POSTGRES_DB: stem_commons
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB:-stem_commons}
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     ports:
       - "5433:5432"
     volumes:
@@ -14,7 +14,7 @@ services:
     networks:
       - stem_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d stem_commons"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-stem_commons}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,19 +28,52 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://user:password@postgres:5432/stem_commons
-      BACKEND_CORS_ORIGINS: http://localhost:5173,http://localhost:3000
-      ENVIRONMENT: development
-      SECRET_KEY: CHANGE_ME_dev_only_insecure_secret_key_override_in_production
-      ACCESS_TOKEN_EXPIRE_MINUTES: 480
-      FIRST_ADMIN_EMAIL: admin@stemcommons.in
-      FIRST_ADMIN_USERNAME: admin
-      FIRST_ADMIN_PASSWORD: ChangeMe123!
+      DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-stem_commons}
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required (see .env.example)}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
+      FIRST_ADMIN_EMAIL: ${FIRST_ADMIN_EMAIL:-}
+      FIRST_ADMIN_USERNAME: ${FIRST_ADMIN_USERNAME:-admin}
+      FIRST_ADMIN_PASSWORD: ${FIRST_ADMIN_PASSWORD:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     volumes:
       - ./backend:/app
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - stem_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: stem_commons_redis
+    ports:
+      - "6380:6379"
+    networks:
+      - stem_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: stem_commons_web
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000/api/v1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
     networks:
       - stem_network
 

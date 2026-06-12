@@ -52,3 +52,14 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
             detail="Admin privileges required",
         )
     return current_user
+
+
+def require_owner_or_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Allow verified facility owners or admins. Per-resource ownership is
+    enforced separately in the endpoints that touch a specific resource."""
+    if current_user.role not in {"Admin", "Verified Owner"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Owner or admin privileges required",
+        )
+    return current_user

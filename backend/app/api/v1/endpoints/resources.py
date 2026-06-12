@@ -3,12 +3,20 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
+from app.core.cache import cache_delete, cache_delete_prefix, cache_get, cache_set
 from app.db.session import get_db
 from app.models.resource import Resource
 from app.models.user import User
 from app.schemas.common import Page
-from app.schemas.resource import ResourceCreate, ResourceOut, ResourceUpdate
+from app.schemas.resource import ResourceCreate, ResourceOut, ResourceSubmit, ResourceUpdate
 from app.services import resource_service
+
+
+def _invalidate_resource_caches() -> None:
+    """Clear caches that become stale after any resource write."""
+    cache_delete("stem:stats")
+    cache_delete("stem:states")
+    cache_delete_prefix("stem:districts")
 
 router = APIRouter()
 
@@ -22,10 +30,18 @@ def list_resources(
     type: str | None = None,
     status_: str | None = Query(None, alias="status"),
     facility: list[str] | None = Query(None, description="Repeatable facility filter"),
+    verified: bool | None = Query(
+        None,
+        description="Filter by verification status. true=verified only, "
+        "false=pending review only, omitted=all public resources.",
+    ),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=1000),
 ):
     query = db.query(Resource).filter(Resource.is_public.is_(True))
+
+    if verified is not None:
+        query = query.filter(Resource.is_verified.is_(verified))
 
     if q:
         like = f"%{q}%"
@@ -77,7 +93,48 @@ def create_resource(
     db.add(resource)
     db.commit()
     db.refresh(resource)
+    _invalidate_resource_caches()
     return ResourceOut.from_model(resource)
+
+
+@router.post("/submit", response_model=ResourceOut, status_code=status.HTTP_201_CREATED)
+def submit_resource(payload: ResourceSubmit, db: Session = Depends(get_db)):
+    """Public, unauthenticated submission. The resource is created as
+    unverified so an admin can review and verify it later."""
+    resource = resource_service.create_submission(payload)
+    db.add(resource)
+    db.commit()
+    db.refresh(resource)
+    _invalidate_resource_caches()
+    return ResourceOut.from_model(resource)
+
+
+@router.get("/stats")
+def resource_stats(db: Session = Depends(get_db)):
+    """Public endpoint — counts for the landing page."""
+    KEY = "stem:stats"
+    if (cached := cache_get(KEY)) is not None:
+        return cached
+    total = db.query(func.count(Resource.id)).filter(Resource.is_public.is_(True)).scalar() or 0
+    by_type = dict(
+        db.query(Resource.type, func.count(Resource.id))
+        .filter(Resource.is_public.is_(True))
+        .group_by(Resource.type)
+        .all()
+    )
+    states_count = (
+        db.query(func.count(func.distinct(Resource.state)))
+        .filter(Resource.is_public.is_(True))
+        .scalar()
+        or 0
+    )
+    result = {
+        "total": int(total),
+        "by_type": {k: int(v) for k, v in by_type.items()},
+        "states_count": int(states_count),
+    }
+    cache_set(KEY, result, ttl=300)
+    return result
 
 
 @router.get("/{resource_id}", response_model=ResourceOut)
@@ -101,6 +158,41 @@ def update_resource(
     resource_service.apply_update(resource, payload)
     db.commit()
     db.refresh(resource)
+    _invalidate_resource_caches()
+    return ResourceOut.from_model(resource)
+
+
+@router.post("/{resource_id}/verify", response_model=ResourceOut)
+def verify_resource(
+    resource_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Approve a pending submission so it becomes a verified resource."""
+    resource = db.get(Resource, resource_id)
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    resource.is_verified = True
+    db.commit()
+    db.refresh(resource)
+    _invalidate_resource_caches()
+    return ResourceOut.from_model(resource)
+
+
+@router.post("/{resource_id}/unverify", response_model=ResourceOut)
+def unverify_resource(
+    resource_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Revoke verification, moving a resource back into the pending queue."""
+    resource = db.get(Resource, resource_id)
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    resource.is_verified = False
+    db.commit()
+    db.refresh(resource)
+    _invalidate_resource_caches()
     return ResourceOut.from_model(resource)
 
 
@@ -115,3 +207,4 @@ def delete_resource(
         raise HTTPException(status_code=404, detail="Resource not found")
     db.delete(resource)
     db.commit()
+    _invalidate_resource_caches()

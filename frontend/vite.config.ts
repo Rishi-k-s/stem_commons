@@ -17,6 +17,8 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
+  // Load env vars (VITE_*) from the single monorepo-root .env, not frontend/.
+  envDir: path.resolve(__dirname, '..'),
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if

@@ -1,5 +1,12 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Path to the single monorepo-root .env (../../.. from this file:
+# backend/app/config.py -> repo root). Falls back gracefully when the file is
+# absent (e.g. in Docker, where vars are injected via the environment).
+from pathlib import Path
+
+_ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "STEM Commons API"
@@ -12,6 +19,8 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
     ENVIRONMENT: str = "development"
+    LOG_LEVEL: str = "INFO"
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     # ── Auth / security ────────────────────────────────────────
     # MUST be overridden via env in production. A long random string,
@@ -26,7 +35,7 @@ class Settings(BaseSettings):
     FIRST_ADMIN_USERNAME: str = "admin"
     FIRST_ADMIN_PASSWORD: str = ""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_ROOT_ENV), extra="ignore")
 
     @property
     def cors_origins(self) -> list[str]:

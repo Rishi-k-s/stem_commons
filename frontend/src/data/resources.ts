@@ -30,6 +30,8 @@ export interface Resource {
   facilities: string[];
   lat: number;
   lng: number;
+  isVerified?: boolean;
+  createdAt?: string;
 }
 
 export const RESOURCE_TYPES: ResourceType[] = [

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
 class ResourceBase(BaseModel):
@@ -23,6 +23,33 @@ class ResourceBase(BaseModel):
 
 class ResourceCreate(ResourceBase):
     pass
+
+
+class ResourceSubmit(BaseModel):
+    """Public submission payload (no auth). Created as unverified, pending
+    admin review. Blends the resource fields with point-of-contact and
+    submitter metadata."""
+
+    # Resource
+    name: str = Field(min_length=1, max_length=255)
+    type: str
+    description: Optional[str] = None
+    facilities: list[str] = []
+    website: Optional[str] = None
+
+    # Location (chosen via the map picker)
+    city: str = Field(min_length=1, max_length=100)
+    state: str = Field(min_length=1, max_length=100)
+    address: Optional[str] = None
+    lat: float
+    lng: float
+
+    # Point of contact / submitter
+    poc_name: str = Field(min_length=1, max_length=255)
+    designation: str = Field(min_length=1, max_length=255)
+    email: EmailStr
+    phone: Optional[str] = None
+    submitted_by: str = Field(min_length=1, max_length=255)
 
 
 class ResourceUpdate(BaseModel):

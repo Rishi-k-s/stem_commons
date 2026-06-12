@@ -24,11 +24,15 @@ export function LoginPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
-  const from = (location.state as LocationState | null)?.from ?? "/admin";
+  // Default destination depends on role: owners land on their facility panel.
+  const destinationFor = (role?: string) =>
+    role === "Verified Owner" ? "/owner" : "/admin";
+
+  const from = (location.state as LocationState | null)?.from;
 
   // Already signed in → bounce to the intended destination.
   React.useEffect(() => {
-    if (user) navigate(from, { replace: true });
+    if (user) navigate(from ?? destinationFor(user.role), { replace: true });
   }, [user, from, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +42,7 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       await login(email.trim(), password);
-      navigate(from, { replace: true });
+      // Navigation handled by the effect above once `user` is populated.
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setError("Too many attempts. Please wait a few minutes and try again.");
@@ -106,7 +110,7 @@ export function LoginPage() {
                 letterSpacing: theme.letterSpacing.wide,
               }}
             >
-              ADMIN SIGN IN
+              SIGN IN
             </span>
           </div>
 
@@ -120,7 +124,7 @@ export function LoginPage() {
                 lineHeight: 1.5,
               }}
             >
-              Restricted area. Sign in with your administrator account to manage resources.
+              Sign in with your administrator or facility-owner account to manage resources.
             </p>
 
             {error && (

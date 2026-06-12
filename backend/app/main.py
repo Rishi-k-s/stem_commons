@@ -6,13 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.api import api_router
 from app.config import settings
 from app.core.bootstrap import bootstrap_admin, validate_security_config
+from app.core.logging import RequestLoggingMiddleware, configure_logging
 from app.db.init_db import init_db
+
+configure_logging(settings.LOG_LEVEL)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Validate security config, create the PostGIS extension and tables,
-    # then bootstrap the first admin (if configured) on startup.
     validate_security_config()
     init_db()
     bootstrap_admin()
@@ -21,6 +22,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
+# Middleware is applied last-in first-out, so CORS runs before logging.
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

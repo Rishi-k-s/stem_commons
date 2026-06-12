@@ -113,7 +113,7 @@ let poolPromise: Promise<Suggestion[]> | null = null;
  */
 export function getSuggestionPool(): Promise<Suggestion[]> {
   if (!poolPromise) {
-    poolPromise = fetchResources(500)
+    poolPromise = fetchResources(500, true)
       .then(buildSuggestionPool)
       .catch(() => buildSuggestionPool([])); // fall back to canonical lists
   }

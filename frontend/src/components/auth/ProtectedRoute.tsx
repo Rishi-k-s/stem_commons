@@ -30,9 +30,12 @@ function FullScreenLoader() {
 export function ProtectedRoute({
   children,
   requireAdmin = false,
+  roles,
 }: {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  /** If provided, the user's role must be one of these. */
+  roles?: string[];
 }) {
   const { user, loading, isAdmin } = useAuth();
   const location = useLocation();
@@ -44,6 +47,10 @@ export function ProtectedRoute({
   }
 
   if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (roles && !roles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
 

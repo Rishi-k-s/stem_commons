@@ -47,6 +47,10 @@ class Resource(Base):
     # Bridge column mirroring the frontend's facility tags for simple filtering.
     facilities = Column(JSONB, default=list)
 
+    # Free-form metadata captured on public submission
+    # (point of contact, designation, submitter name).
+    submission_meta = Column(JSONB)
+
     is_verified = Column(Boolean, default=False, nullable=False)
     is_public = Column(Boolean, default=True, nullable=False)
 

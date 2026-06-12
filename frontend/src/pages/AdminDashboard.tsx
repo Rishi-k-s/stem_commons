@@ -1,17 +1,28 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Plus, Pencil, Trash2, X, AlertCircle, Search } from "lucide-react";
+import { LogOut, Plus, Pencil, Trash2, X, AlertCircle, Search, Check, Download } from "lucide-react";
 import { Header } from "../components/common/Header";
 import { Button } from "../components/common/Button";
 import { Badge } from "../components/common/Badge";
 import { theme } from "../styles/theme";
 import { useAuth } from "../context/AuthContext";
 import { useIsMobile } from "../hooks/useMediaQuery";
+import { LocationPicker } from "../components/admin/LocationPicker";
+import { AnalyticsCards } from "../components/admin/AnalyticsCards";
+import { ClaimsPanel } from "../components/admin/ClaimsPanel";
+import { ReportsPanel } from "../components/admin/ReportsPanel";
+import { UsersPanel } from "../components/admin/UsersPanel";
+import { ActivityPanel } from "../components/admin/ActivityPanel";
+import { RecentSubmissionsCard } from "../components/admin/RecentSubmissionsCard";
 import {
   fetchResources,
   createResource,
   updateResource,
   deleteResource,
+  verifyResource,
+  bulkVerifyResources,
+  bulkDeleteResources,
+  exportResourcesCsv,
   type ResourceInput,
 } from "../lib/api";
 import { ApiError } from "../lib/auth";
@@ -46,9 +57,14 @@ export function AdminDashboard() {
   const [resources, setResources] = React.useState<Resource[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [query, setQuery] = React.useState("");
+  const [section, setSection] = React.useState<"overview" | "resources" | "claims" | "reports" | "users" | "activity">("overview");
+  const [tab, setTab] = React.useState<"pending" | "all">("pending");
 
   const [editing, setEditing] = React.useState<Resource | null>(null);
   const [creating, setCreating] = React.useState(false);
+  const [verifyingId, setVerifyingId] = React.useState<number | null>(null);
+  const [selected, setSelected] = React.useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = React.useState(false);
 
   const reload = React.useCallback(() => {
     setLoading(true);
@@ -59,16 +75,103 @@ export function AdminDashboard() {
 
   React.useEffect(reload, [reload]);
 
+  const pendingCount = React.useMemo(
+    () => resources.filter((r) => r.isVerified === false).length,
+    [resources]
+  );
+
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return resources;
-    return resources.filter(
+    const byTab =
+      tab === "pending"
+        ? resources.filter((r) => r.isVerified === false)
+        : resources;
+    if (!q) return byTab;
+    return byTab.filter(
       (r) =>
         r.name.toLowerCase().includes(q) ||
         r.city.toLowerCase().includes(q) ||
         r.state.toLowerCase().includes(q)
     );
-  }, [resources, query]);
+  }, [resources, query, tab]);
+
+  // Drop selections that fall outside the current filtered view.
+  React.useEffect(() => {
+    setSelected((prev) => {
+      const visible = new Set(filtered.map((r) => r.id));
+      const next = new Set([...prev].filter((id) => visible.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [filtered]);
+
+  const toggleSelect = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const allVisibleSelected = filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+
+  const toggleSelectAll = () =>
+    setSelected(() => {
+      if (allVisibleSelected) return new Set();
+      return new Set(filtered.map((r) => r.id));
+    });
+
+  const handleVerify = async (r: Resource) => {
+    setVerifyingId(r.id);
+    try {
+      const updated = await verifyResource(r.id);
+      setResources((prev) =>
+        prev.map((x) => (x.id === r.id ? { ...x, isVerified: updated.isVerified } : x))
+      );
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to verify resource.");
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const handleBulkVerify = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    try {
+      await bulkVerifyResources(ids);
+      setSelected(new Set());
+      reload();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Bulk verify failed.");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} resource(s)? This cannot be undone.`)) return;
+    setBulkBusy(true);
+    try {
+      await bulkDeleteResources(ids);
+      setSelected(new Set());
+      reload();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Bulk delete failed.");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      await exportResourcesCsv();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Export failed.");
+    }
+  };
 
   const handleDelete = async (r: Resource) => {
     if (!window.confirm(`Delete "${r.name}"? This cannot be undone.`)) return;
@@ -134,89 +237,186 @@ export function AdminDashboard() {
         </div>
 
         <p style={{ fontFamily: theme.fonts.body, fontSize: "0.9rem", color: theme.colors.textMuted, marginTop: 0, marginBottom: "24px" }}>
-          Manage the resource directory — create, edit, and remove entries.
+          Overview, submissions, claims, and reports — manage the entire directory in one place.
         </p>
 
-        {/* Toolbar */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: isMobile ? "column" : "row",
-            gap: "12px",
-            marginBottom: "20px",
-          }}
-        >
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              border: `1px solid ${theme.colors.borderStrong}`,
-              background: theme.colors.surface,
-              padding: "10px 14px",
-            }}
-          >
-            <Search size={16} style={{ color: theme.colors.textMuted, flexShrink: 0 }} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filter by name, city, or state…"
-              style={{
-                flex: 1,
-                border: "none",
-                outline: "none",
-                background: "transparent",
-                fontFamily: theme.fonts.body,
-                fontSize: "0.9rem",
-                color: theme.colors.text,
-                minWidth: 0,
-              }}
-            />
-          </div>
-          <Button variant="primary" size="md" onClick={() => setCreating(true)} style={{ justifyContent: "center" }}>
-            <Plus size={15} /> ADD RESOURCE
-          </Button>
+        {/* Section navigation */}
+        <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap", borderBottom: `1px solid ${theme.colors.border}`, paddingBottom: "0" }}>
+          <SectionTab label="OVERVIEW" active={section === "overview"} onClick={() => setSection("overview")} />
+          <SectionTab
+            label="RESOURCES"
+            active={section === "resources"}
+            onClick={() => setSection("resources")}
+            badge={pendingCount > 0 ? pendingCount : undefined}
+          />
+          <SectionTab label="CLAIMS" active={section === "claims"} onClick={() => setSection("claims")} />
+          <SectionTab label="REPORTS" active={section === "reports"} onClick={() => setSection("reports")} />
+          <SectionTab label="USERS" active={section === "users"} onClick={() => setSection("users")} />
+          <SectionTab label="ACTIVITY" active={section === "activity"} onClick={() => setSection("activity")} />
         </div>
 
-        {/* List */}
-        {loading ? (
-          <div style={emptyStyle}>LOADING…</div>
-        ) : filtered.length === 0 ? (
-          <div style={emptyStyle}>No resources found.</div>
-        ) : (
-          <div style={{ border: `1px solid ${theme.colors.border}`, background: theme.colors.surface }}>
-            {filtered.map((r, i) => (
+        {section === "overview" && (
+          <>
+            <AnalyticsCards />
+            <RecentSubmissionsCard onApproved={reload} />
+          </>
+        )}
+        {section === "claims" && <ClaimsPanel />}
+        {section === "reports" && <ReportsPanel />}
+        {section === "users" && <UsersPanel />}
+        {section === "activity" && <ActivityPanel />}
+
+        {section === "resources" && (
+          <>
+            {/* Sub-tabs */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+              <button onClick={() => setTab("pending")} style={tabStyle(tab === "pending")}>
+                PENDING REVIEW
+                {pendingCount > 0 && <span style={pendingPill}>{pendingCount}</span>}
+              </button>
+              <button onClick={() => setTab("all")} style={tabStyle(tab === "all")}>
+                ALL RESOURCES
+              </button>
+            </div>
+
+            {/* Toolbar */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: isMobile ? "column" : "row",
+                gap: "12px",
+                marginBottom: "20px",
+              }}
+            >
               <div
-                key={r.id}
                 style={{
+                  flex: 1,
                   display: "flex",
                   alignItems: "center",
-                  gap: "12px",
-                  padding: "12px 16px",
-                  borderTop: i === 0 ? "none" : `1px solid ${theme.colors.border}`,
+                  gap: "10px",
+                  border: `1px solid ${theme.colors.borderStrong}`,
+                  background: theme.colors.surface,
+                  padding: "10px 14px",
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                    <span style={{ fontFamily: theme.fonts.heading, fontSize: "0.95rem", fontWeight: 700, color: theme.colors.text }}>
-                      {r.name}
-                    </span>
-                    <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
-                  </div>
-                  <div style={{ fontFamily: theme.fonts.mono, fontSize: "0.68rem", color: theme.colors.textMuted, letterSpacing: theme.letterSpacing.wide, marginTop: "3px" }}>
-                    {r.type} • {r.city}, {r.state}
-                  </div>
-                </div>
-                <button onClick={() => setEditing(r)} aria-label="Edit" style={iconBtn}>
-                  <Pencil size={16} />
-                </button>
-                <button onClick={() => handleDelete(r)} aria-label="Delete" style={{ ...iconBtn, color: "#b91c1c" }}>
-                  <Trash2 size={16} />
-                </button>
+                <Search size={16} style={{ color: theme.colors.textMuted, flexShrink: 0 }} />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Filter by name, city, or state…"
+                  style={{
+                    flex: 1,
+                    border: "none",
+                    outline: "none",
+                    background: "transparent",
+                    fontFamily: theme.fonts.body,
+                    fontSize: "0.9rem",
+                    color: theme.colors.text,
+                    minWidth: 0,
+                  }}
+                />
               </div>
-            ))}
-          </div>
+              <Button variant="outline" size="md" onClick={handleExport} style={{ justifyContent: "center" }}>
+                <Download size={15} /> EXPORT CSV
+              </Button>
+              <Button variant="primary" size="md" onClick={() => setCreating(true)} style={{ justifyContent: "center" }}>
+                <Plus size={15} /> ADD RESOURCE
+              </Button>
+            </div>
+
+            {/* Bulk action bar */}
+            {selected.size > 0 && (
+              <div style={bulkBar}>
+                <span style={{ fontFamily: theme.fonts.mono, fontSize: "0.7rem", letterSpacing: theme.letterSpacing.wide, color: theme.colors.text }}>
+                  {selected.size} SELECTED
+                </span>
+                <div style={{ display: "flex", gap: "8px", marginLeft: "auto", flexWrap: "wrap" }}>
+                  <Button variant="primary" size="sm" disabled={bulkBusy} onClick={handleBulkVerify}>
+                    <Check size={14} /> VERIFY
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={bulkBusy} onClick={handleBulkDelete} style={{ color: "#b91c1c", borderColor: "#b91c1c" }}>
+                    <Trash2 size={14} /> DELETE
+                  </Button>
+                  <Button variant="secondary" size="sm" disabled={bulkBusy} onClick={() => setSelected(new Set())}>
+                    CLEAR
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* List */}
+            {loading ? (
+              <div style={emptyStyle}>LOADING…</div>
+            ) : filtered.length === 0 ? (
+              <div style={emptyStyle}>
+                {tab === "pending"
+                  ? "Nothing awaiting review — all submissions are verified."
+                  : "No resources found."}
+              </div>
+            ) : (
+              <div style={{ border: `1px solid ${theme.colors.border}`, background: theme.colors.surface }}>
+                {/* Select-all header */}
+                <label style={selectAllRow}>
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} style={{ cursor: "pointer" }} />
+                  <span style={{ fontFamily: theme.fonts.mono, fontSize: "0.62rem", letterSpacing: theme.letterSpacing.wide, color: theme.colors.textMuted }}>
+                    SELECT ALL ({filtered.length})
+                  </span>
+                </label>
+                {filtered.map((r) => {
+                  const pending = r.isVerified === false;
+                  const checked = selected.has(r.id);
+                  return (
+                    <div
+                      key={r.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        padding: "12px 16px",
+                        borderTop: `1px solid ${theme.colors.border}`,
+                        background: checked
+                          ? "rgba(41,0,135,0.05)"
+                          : pending
+                          ? "rgba(234,179,8,0.06)"
+                          : undefined,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleSelect(r.id)}
+                        style={{ cursor: "pointer", flexShrink: 0 }}
+                        aria-label={`Select ${r.name}`}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                          <span style={{ fontFamily: theme.fonts.heading, fontSize: "0.95rem", fontWeight: 700, color: theme.colors.text }}>
+                            {r.name}
+                          </span>
+                          <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
+                          {pending && <span style={pendingBadge}>PENDING</span>}
+                        </div>
+                        <div style={{ fontFamily: theme.fonts.mono, fontSize: "0.68rem", color: theme.colors.textMuted, letterSpacing: theme.letterSpacing.wide, marginTop: "3px" }}>
+                          {r.type} • {r.city}, {r.state}
+                        </div>
+                      </div>
+                      {pending && (
+                        <Button variant="primary" size="sm" onClick={() => handleVerify(r)} disabled={verifyingId === r.id}>
+                          <Check size={14} /> {verifyingId === r.id ? "…" : "APPROVE"}
+                        </Button>
+                      )}
+                      <button onClick={() => setEditing(r)} aria-label="Edit" style={iconBtn}>
+                        <Pencil size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(r)} aria-label="Delete" style={{ ...iconBtn, color: "#b91c1c" }}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -281,6 +481,10 @@ function ResourceFormModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (Number(form.lat) === 0 && Number(form.lng) === 0) {
+      setError("Please set a location on the map (search or click to drop a pin).");
+      return;
+    }
     setSaving(true);
     const payload: ResourceInput = {
       ...form,
@@ -393,14 +597,15 @@ function ResourceFormModal({
             <input value={form.address} onChange={(e) => set("address", e.target.value)} style={fieldInput} />
           </Field>
 
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-            <Field label="LATITUDE" style={{ flex: 1, minWidth: "140px" }}>
-              <input required type="number" step="any" value={form.lat} onChange={(e) => set("lat", e.target.value as unknown as number)} style={fieldInput} />
-            </Field>
-            <Field label="LONGITUDE" style={{ flex: 1, minWidth: "140px" }}>
-              <input required type="number" step="any" value={form.lng} onChange={(e) => set("lng", e.target.value as unknown as number)} style={fieldInput} />
-            </Field>
-          </div>
+          <Field label="LOCATION">
+            <LocationPicker
+              lat={Number(form.lat)}
+              lng={Number(form.lng)}
+              onChange={(la, ln) =>
+                setForm((f) => ({ ...f, lat: la as unknown as number, lng: ln as unknown as number }))
+              }
+            />
+          </Field>
 
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <Field label="PHONE" style={{ flex: 1, minWidth: "160px" }}>
@@ -489,4 +694,106 @@ const emptyStyle: React.CSSProperties = {
   color: theme.colors.textMuted,
   border: `1px solid ${theme.colors.border}`,
   background: theme.colors.surface,
+};
+
+function tabStyle(active: boolean): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    cursor: "pointer",
+    fontFamily: theme.fonts.mono,
+    fontSize: "0.7rem",
+    letterSpacing: theme.letterSpacing.wide,
+    padding: "9px 16px",
+    border: `1px solid ${active ? theme.colors.primary : theme.colors.borderStrong}`,
+    background: active ? theme.colors.primary : theme.colors.surface,
+    color: active ? theme.colors.textInverse : theme.colors.text,
+    fontWeight: 700,
+  };
+}
+
+function SectionTab({
+  label,
+  active,
+  onClick,
+  badge,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  badge?: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "8px",
+        cursor: "pointer",
+        fontFamily: theme.fonts.mono,
+        fontSize: "0.72rem",
+        letterSpacing: theme.letterSpacing.wide,
+        padding: "10px 4px",
+        marginBottom: "-1px",
+        background: "none",
+        border: "none",
+        borderBottom: `2px solid ${active ? theme.colors.primary : "transparent"}`,
+        color: active ? theme.colors.primary : theme.colors.textMuted,
+        fontWeight: 700,
+      }}
+    >
+      {label}
+      {badge !== undefined && <span style={pendingPill}>{badge}</span>}
+    </button>
+  );
+}
+
+const bulkBar: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  padding: "10px 16px",
+  marginBottom: "16px",
+  background: theme.colors.surfaceAlt,
+  border: `1px solid ${theme.colors.borderStrong}`,
+  flexWrap: "wrap",
+};
+
+const selectAllRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  padding: "10px 16px",
+  background: theme.colors.surface,
+  cursor: "pointer",
+};
+
+const pendingPill: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: "18px",
+  height: "18px",
+  padding: "0 5px",
+  borderRadius: "9px",
+  background: "#eab308",
+  color: "#1a1a1a",
+  fontFamily: theme.fonts.mono,
+  fontSize: "0.62rem",
+  fontWeight: 700,
+};
+
+const pendingBadge: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "2px 8px",
+  background: "rgba(234,179,8,0.18)",
+  border: "1px solid rgba(234,179,8,0.55)",
+  color: "#854d0e",
+  fontFamily: theme.fonts.mono,
+  fontSize: "0.6rem",
+  fontWeight: 700,
+  letterSpacing: theme.letterSpacing.wide,
 };

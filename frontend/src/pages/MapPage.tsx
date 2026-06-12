@@ -65,7 +65,7 @@ export function MapPage() {
   // Load all resources from the backend once on mount.
   React.useEffect(() => {
     let active = true;
-    fetchResources()
+    fetchResources(500, true)
       .then((data) => active && setResources(data))
       .catch(() => active && setResources([]));
     return () => {

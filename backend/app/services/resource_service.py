@@ -3,7 +3,7 @@ richer ORM model (including the PostGIS geography point)."""
 from geoalchemy2.elements import WKTElement
 
 from app.models.resource import Resource
-from app.schemas.resource import ResourceCreate, ResourceUpdate
+from app.schemas.resource import ResourceCreate, ResourceSubmit, ResourceUpdate
 
 
 def _point(lat: float, lng: float) -> WKTElement:
@@ -29,6 +29,41 @@ def create_resource(data: ResourceCreate) -> Resource:
         contact_email=data.contact,
         website=data.website,
         facilities=data.facilities or [],
+        is_verified=True,
+    )
+
+
+def create_submission(data: ResourceSubmit) -> Resource:
+    """Build a resource from a public submission: unverified and awaiting
+    review. Point-of-contact / submitter details are kept in submission_meta."""
+    website = (data.website or "").strip()
+    if website.upper() in {"", "N/A", "NA"}:
+        website = None
+
+    return Resource(
+        name=data.name.strip(),
+        type=data.type,
+        status="Working",
+        full_description=data.description,
+        short_description=(data.description or "")[:500] or None,
+        address_line1=data.address,
+        city=data.city.strip(),
+        district=data.city.strip(),
+        state=data.state.strip(),
+        latitude=data.lat,
+        longitude=data.lng,
+        location=_point(data.lat, data.lng),
+        contact_phone=data.phone,
+        contact_email=str(data.email),
+        website=website,
+        facilities=data.facilities or [],
+        is_verified=False,
+        is_public=True,
+        submission_meta={
+            "poc_name": data.poc_name.strip(),
+            "designation": data.designation.strip(),
+            "submitted_by": data.submitted_by.strip(),
+        },
     )
 
 
