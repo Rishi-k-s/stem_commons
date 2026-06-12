@@ -1,16 +1,64 @@
+import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, Globe } from "lucide-react";
+import { ArrowLeft, Phone, Mail, Globe, MapPin } from "lucide-react";
 import { Header } from "../components/common/Header";
 import { Button } from "../components/common/Button";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { theme } from "../styles/theme";
-import { getResource, statusVariant } from "../data/resources";
+import { fetchResource } from "../lib/api";
+import { statusVariant, type Resource } from "../data/resources";
+import { useIsMobile } from "../hooks/useMediaQuery";
 
 export function ResourceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const resource = getResource(Number(id));
+  const isMobile = useIsMobile();
+
+  const [resource, setResource] = React.useState<Resource | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let active = true;
+    setLoading(true);
+    fetchResource(Number(id))
+      .then((r) => active && setResource(r))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          background: theme.colors.background,
+        }}
+      >
+        <div style={{ height: "3px", background: theme.colors.primary, flexShrink: 0 }} />
+        <Header />
+        <main
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "48px",
+            fontFamily: theme.fonts.mono,
+            fontSize: "0.85rem",
+            letterSpacing: theme.letterSpacing.wide,
+            color: theme.colors.textMuted,
+          }}
+        >
+          LOADING…
+        </main>
+      </div>
+    );
+  }
 
   if (!resource) {
     return (
@@ -78,7 +126,7 @@ export function ResourceDetail() {
           maxWidth: "1080px",
           width: "100%",
           margin: "0 auto",
-          padding: "48px 32px",
+          padding: isMobile ? "24px 16px" : "48px 32px",
         }}
       >
         {/* Back button */}
@@ -102,16 +150,25 @@ export function ResourceDetail() {
         </button>
 
         {/* Resource header */}
-        <div style={{ marginBottom: "36px" }}>
-          <div style={{ display: "flex", alignItems: "start", gap: "16px", marginBottom: "16px" }}>
+        <div style={{ marginBottom: isMobile ? "24px" : "36px" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: isMobile ? "column" : "row",
+              alignItems: isMobile ? "flex-start" : "start",
+              gap: isMobile ? "12px" : "16px",
+              marginBottom: "16px",
+            }}
+          >
             <div style={{ flex: 1 }}>
               <h1
                 style={{
                   fontFamily: theme.fonts.heading,
-                  fontSize: "2.4rem",
+                  fontSize: isMobile ? "1.6rem" : "2.4rem",
                   fontWeight: 700,
                   margin: 0,
                   color: theme.colors.text,
+                  lineHeight: 1.15,
                 }}
               >
                 {resource.name}
@@ -119,7 +176,7 @@ export function ResourceDetail() {
               <p
                 style={{
                   fontFamily: theme.fonts.mono,
-                  fontSize: "0.85rem",
+                  fontSize: isMobile ? "0.72rem" : "0.85rem",
                   color: theme.colors.primary,
                   letterSpacing: "0.2em",
                   marginTop: "4px",
@@ -136,9 +193,9 @@ export function ResourceDetail() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "2fr 1fr",
-            gap: "32px",
-            marginBottom: "48px",
+            gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr",
+            gap: isMobile ? "20px" : "32px",
+            marginBottom: isMobile ? "32px" : "48px",
           }}
         >
           {/* Main content */}
@@ -206,6 +263,20 @@ export function ResourceDetail() {
               >
                 CONTACT
               </h3>
+
+              <div style={{ display: "flex", alignItems: "start", gap: "12px", marginTop: "16px" }}>
+                <MapPin size={16} style={{ color: theme.colors.primary, flexShrink: 0, marginTop: "2px" }} />
+                <span
+                  style={{
+                    fontFamily: theme.fonts.body,
+                    fontSize: "0.9rem",
+                    lineHeight: 1.5,
+                    color: "rgba(0,0,0,0.7)",
+                  }}
+                >
+                  {resource.address}
+                </span>
+              </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "16px" }}>
                 <Phone size={16} style={{ color: theme.colors.primary }} />

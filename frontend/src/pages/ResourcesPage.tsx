@@ -1,15 +1,17 @@
 import React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Search, X } from "lucide-react";
-import { Header } from "../components/common/Header";
+import { ArrowLeft, Search, X } from "lucide-react";import { Header } from "../components/common/Header";
 import { Button } from "../components/common/Button";
 import { Badge } from "../components/common/Badge";
 import { theme } from "../styles/theme";
+import { useIsMobile } from "../hooks/useMediaQuery";
+import { useSearchAutocomplete } from "../hooks/useSearchAutocomplete";
+import { fetchResources } from "../lib/api";
 import {
-  resources,
   statusVariant,
   RESOURCE_TYPES,
   RESOURCE_STATUSES,
+  type Resource,
   type ResourceType,
   type ResourceStatus,
 } from "../data/resources";
@@ -18,12 +20,37 @@ type SortKey = "name-asc" | "name-desc" | "recent";
 
 export function ResourcesPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [query, setQuery] = React.useState(searchParams.get("q") ?? "");
   const [typeFilters, setTypeFilters] = React.useState<Set<ResourceType>>(new Set());
   const [statusFilters, setStatusFilters] = React.useState<Set<ResourceStatus>>(new Set());
   const [sort, setSort] = React.useState<SortKey>("name-asc");
+
+  const search = useSearchAutocomplete({ value: query, onChange: setQuery });
+
+  const [resources, setResources] = React.useState<Resource[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // Load resources from the backend once on mount.
+  React.useEffect(() => {
+    let active = true;
+    setLoading(true);
+    fetchResources()
+      .then((data) => {
+        if (active) {
+          setResources(data);
+          setError(null);
+        }
+      })
+      .catch(() => active && setError("Could not load resources. Is the API running?"))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Keep the URL ?q= in sync so the search is shareable / survives reloads.
   React.useEffect(() => {
@@ -60,7 +87,7 @@ export function ResourcesPage() {
       if (sort === "name-desc") return b.name.localeCompare(a.name);
       return b.id - a.id; // recent
     });
-  }, [query, typeFilters, statusFilters, sort]);
+  }, [resources, query, typeFilters, statusFilters, sort]);
 
   const hasActiveFilters =
     query.trim() !== "" || typeFilters.size > 0 || statusFilters.size > 0;
@@ -105,10 +132,10 @@ export function ResourcesPage() {
           maxWidth: "1280px",
           width: "100%",
           margin: "0 auto",
-          padding: "48px 32px",
+          padding: isMobile ? "24px 18px" : "48px 32px",
         }}
       >
-        <div style={{ marginBottom: "24px", display: "flex", alignItems: "center", gap: "16px" }}>
+        <div style={{ marginBottom: "24px", display: "flex", alignItems: "center", gap: isMobile ? "12px" : "16px" }}>
           <button
             onClick={() => navigate("/")}
             style={{
@@ -118,6 +145,7 @@ export function ResourcesPage() {
               display: "flex",
               alignItems: "center",
               gap: "8px",
+              flexShrink: 0,
               color: theme.colors.primary,
               fontFamily: theme.fonts.heading,
               fontSize: "0.78rem",
@@ -129,7 +157,7 @@ export function ResourcesPage() {
           <h1
             style={{
               fontFamily: theme.fonts.heading,
-              fontSize: "2rem",
+              fontSize: isMobile ? "1.4rem" : "2rem",
               fontWeight: 700,
               margin: 0,
               color: theme.colors.text,
@@ -142,6 +170,7 @@ export function ResourcesPage() {
         {/* Search input */}
         <div
           style={{
+            position: "relative",
             display: "flex",
             alignItems: "center",
             gap: "10px",
@@ -155,6 +184,7 @@ export function ResourcesPage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            {...search.inputProps}
             placeholder="Search by name, city, state, type, or facility…"
             style={{
               flex: 1,
@@ -181,6 +211,7 @@ export function ResourcesPage() {
               <X size={16} />
             </button>
           )}
+          {search.dropdown}
         </div>
 
         {/* Filters */}
@@ -275,8 +306,32 @@ export function ResourcesPage() {
           </div>
         </div>
 
-        {/* Resources Grid / empty state */}
-        {filtered.length === 0 ? (
+        {/* Resources Grid / loading / error / empty state */}
+        {loading ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "64px 24px",
+              fontFamily: theme.fonts.mono,
+              fontSize: "0.85rem",
+              letterSpacing: theme.letterSpacing.wide,
+              color: theme.colors.textMuted,
+            }}
+          >
+            LOADING RESOURCES…
+          </div>
+        ) : error ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "64px 24px",
+              fontFamily: theme.fonts.body,
+              color: theme.colors.error,
+            }}
+          >
+            <p style={{ fontSize: "1rem", margin: 0 }}>{error}</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div
             style={{
               textAlign: "center",
@@ -294,8 +349,10 @@ export function ResourcesPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-              gap: "24px",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: isMobile ? "16px" : "24px",
             }}
           >
             {filtered.map((resource) => (
@@ -378,11 +435,11 @@ export function ResourcesPage() {
         style={{
           background: theme.colors.footer,
           color: theme.colors.textInverse,
-          padding: "0 32px",
-          height: "40px",
+          padding: isMobile ? "14px 18px" : "0 32px",
+          height: isMobile ? "auto" : "40px",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: isMobile ? "center" : "space-between",
           flexShrink: 0,
           borderTop: `3px solid ${theme.colors.secondary}`,
         }}
@@ -393,6 +450,7 @@ export function ResourcesPage() {
             fontSize: theme.fontSizes.xs,
             color: "rgba(255,255,255,0.6)",
             margin: 0,
+            textAlign: "center",
           }}
         >
           © 2026 STEM COMMONS. ALL RIGHTS RESERVED.

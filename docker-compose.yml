@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: stem_commons_db
+    environment:
+      POSTGRES_DB: stem_commons
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - stem_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d stem_commons"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: stem_commons_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres:5432/stem_commons
+      BACKEND_CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      ENVIRONMENT: development
+      SECRET_KEY: CHANGE_ME_dev_only_insecure_secret_key_override_in_production
+      ACCESS_TOKEN_EXPIRE_MINUTES: 480
+      FIRST_ADMIN_EMAIL: admin@stemcommons.in
+      FIRST_ADMIN_USERNAME: admin
+      FIRST_ADMIN_PASSWORD: ChangeMe123!
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - stem_network
+
+volumes:
+  postgres_data:
+
+networks:
+  stem_network:
+    driver: bridge

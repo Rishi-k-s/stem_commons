@@ -5,9 +5,11 @@ import { Header } from "../components/common/Header";
 import { Button } from "../components/common/Button";
 import { SearchBar } from "../components/search/SearchBar";
 import { theme, gridBg } from "../styles/theme";
+import { useIsMobile } from "../hooks/useMediaQuery";
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const stats = [
@@ -20,8 +22,9 @@ export function LandingPage() {
   return (
     <div
       style={{
-        height: "100vh",
-        overflow: "hidden",
+        height: isMobile ? "auto" : "100vh",
+        minHeight: "100vh",
+        overflow: isMobile ? "visible" : "hidden",
         display: "flex",
         flexDirection: "column",
         background: theme.colors.background,
@@ -47,7 +50,7 @@ export function LandingPage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          padding: "0 24px",
+          padding: isMobile ? "36px 18px" : "0 24px",
           position: "relative",
           zIndex: 10,
           gap: "0",
@@ -62,7 +65,8 @@ export function LandingPage() {
             fontSize: theme.fontSizes.xs,
             letterSpacing: theme.letterSpacing.widest,
             color: theme.colors.primary,
-            marginBottom: "28px",
+            marginBottom: isMobile ? "20px" : "28px",
+            textAlign: "center",
           }}
         >
           CONNECT · DISCOVER · INNOVATE
@@ -78,6 +82,7 @@ export function LandingPage() {
             letterSpacing: theme.letterSpacing.tight,
             color: theme.colors.text,
             margin: 0,
+            textAlign: "center",
           }}
         >
           FIND YOUR
@@ -91,6 +96,7 @@ export function LandingPage() {
             letterSpacing: theme.letterSpacing.tight,
             color: theme.colors.primary,
             margin: "0 0 12px",
+            textAlign: "center",
           }}
         >
           NEXT STEM SPACE
@@ -102,7 +108,7 @@ export function LandingPage() {
             lineHeight: 1.6,
             maxWidth: "420px",
             textAlign: "center",
-            margin: "0 0 36px",
+            margin: isMobile ? "0 0 28px" : "0 0 36px",
           }}
         >
           Connect with Makerspaces, ATAL Tinkering Labs, and STEM vendors across India.
@@ -121,7 +127,16 @@ export function LandingPage() {
         </div>
 
         {/* Browse & Map buttons */}
-        <div style={{ display: "flex", gap: "12px", marginBottom: "48px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            gap: "12px",
+            marginBottom: isMobile ? "36px" : "48px",
+            width: isMobile ? "100%" : "auto",
+          }}
+        >
           <Button
             onClick={() => navigate("/resources")}
             variant="ghost"
@@ -130,7 +145,7 @@ export function LandingPage() {
             RESOURCE DIRECTORY <ChevronRight size={13} />
           </Button>
           <Button
-            onClick={() => navigate("/resources")}
+            onClick={() => navigate("/map")}
             variant="ghost"
             size="md"
           >
@@ -141,20 +156,22 @@ export function LandingPage() {
         {/* Stats */}
         <div
           style={{
-            display: "flex",
-            gap: "0",
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
+            gap: "1px",
             border: `1px solid ${theme.colors.border}`,
-            background: theme.colors.surfaceAlt,
+            background: theme.colors.border,
+            width: isMobile ? "100%" : "auto",
+            maxWidth: "420px",
           }}
         >
           {stats.map((s, i) => (
             <div
               key={i}
               style={{
-                flex: 1,
                 textAlign: "center",
-                padding: "16px 24px",
-                borderRight: i < stats.length - 1 ? `1px solid ${theme.colors.border}` : "none",
+                padding: isMobile ? "16px 12px" : "16px 24px",
+                background: theme.colors.surfaceAlt,
               }}
             >
               <div
@@ -189,21 +206,23 @@ export function LandingPage() {
         style={{
           background: theme.colors.footer,
           color: theme.colors.textInverse,
-          padding: "0 32px",
-          height: "40px",
+          padding: isMobile ? "14px 18px" : "0 32px",
+          height: isMobile ? "auto" : "40px",
           display: "flex",
+          flexDirection: isMobile ? "column" : "row",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: isMobile ? "10px" : 0,
           flexShrink: 0,
           borderTop: `3px solid ${theme.colors.secondary}`,
           position: "relative",
           zIndex: 10,
         }}
       >
-        <p style={{ fontFamily: theme.fonts.mono, fontSize: theme.fontSizes.xs, color: "rgba(255,255,255,0.6)", margin: 0 }}>
+        <p style={{ fontFamily: theme.fonts.mono, fontSize: theme.fontSizes.xs, color: "rgba(255,255,255,0.6)", margin: 0, textAlign: "center" }}>
           © 2026 STEM COMMONS. ALL RIGHTS RESERVED.
         </p>
-        <div style={{ display: "flex", gap: "28px" }}>
+        <div style={{ display: "flex", gap: isMobile ? "20px" : "28px" }}>
           {["About", "Contact", "Privacy"].map((item) => (
             <a
               key={item}

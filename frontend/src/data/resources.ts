@@ -1,8 +1,9 @@
 /**
  * ─────────────────────────────────────────────────────────────
- *  MOCK RESOURCE DATA — single source of truth
- *  Used by ResourcesPage (list) and ResourceDetail (single view).
- *  Replace this module with an API client in Phase 2.
+ *  RESOURCE TYPES & HELPERS
+ *  Data now comes from the backend API (see src/lib/api.ts).
+ *  This module holds only shared types, canonical lookup lists,
+ *  and pure helper functions.
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -22,10 +23,13 @@ export interface Resource {
   state: string;
   status: ResourceStatus;
   description: string;
+  address: string;
   contact: string;
   phone: string;
   website: string;
   facilities: string[];
+  lat: number;
+  lng: number;
 }
 
 export const RESOURCE_TYPES: ResourceType[] = [
@@ -39,6 +43,61 @@ export const RESOURCE_STATUSES: ResourceStatus[] = [
   "Planned",
   "Temporarily Closed",
   "Permanently Closed",
+];
+
+/** Canonical facility categories used for filtering. */
+export const ALL_FACILITIES: string[] = [
+  "3D Printing",
+  "CNC Machines",
+  "Computer Lab",
+  "Electronics Lab",
+  "Laser Cutting",
+  "Metal Workshop",
+  "PCB Fabrication",
+  "Robotics",
+  "Testing Equipment",
+  "VR/AR Equipment",
+  "Wood Workshop",
+];
+
+/** Indian states + union territories, alphabetically sorted. */
+export const ALL_STATES: string[] = [
+  "Andaman and Nicobar Islands",
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chandigarh",
+  "Chhattisgarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jammu and Kashmir",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Ladakh",
+  "Lakshadweep",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Puducherry",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
 ];
 
 /** Maps a resource status to a Badge variant. */
@@ -59,150 +118,57 @@ export function statusVariant(
   }
 }
 
-export const resources: Resource[] = [
-  {
-    id: 1,
-    name: "FabLab IIT Delhi",
-    type: "Makerspace",
-    city: "New Delhi",
-    state: "Delhi",
-    status: "Working",
-    description:
-      "A comprehensive makerspace with state-of-the-art equipment and facilities for prototyping and design. Open to students, researchers, and the wider innovation community.",
-    contact: "fablab@iitd.ac.in",
-    phone: "+91-11-2659-1234",
-    website: "https://fablab.iitd.ac.in",
-    facilities: ["3D Printing", "Laser Cutting", "CNC Machines", "Electronics Lab"],
-  },
-  {
-    id: 2,
-    name: "ATAL Tinkering Lab — KV No. 1",
-    type: "ATAL Lab",
-    city: "Mumbai",
-    state: "Maharashtra",
-    status: "Working",
-    description:
-      "ATAL Tinkering Lab focusing on innovation and entrepreneurship for young innovators. Equipped for robotics, electronics, and rapid prototyping projects.",
-    contact: "atl.kv1mum@gov.in",
-    phone: "+91-22-1234-5678",
-    website: "https://atl.gov.in",
-    facilities: ["Robotics", "Electronics Lab", "3D Printing"],
-  },
-  {
-    id: 3,
-    name: "Tinkerers' Paradise",
-    type: "Makerspace",
-    city: "Bangalore",
-    state: "Karnataka",
-    status: "Working",
-    description:
-      "Community-run makerspace offering shared access to fabrication tools, workshops, and a collaborative environment for hobbyists and startups alike.",
-    contact: "hello@tinkerersparadise.in",
-    phone: "+91-80-4567-8910",
-    website: "https://tinkerersparadise.in",
-    facilities: ["3D Printing", "Wood Workshop", "Electronics Lab", "Laser Cutting"],
-  },
-  {
-    id: 4,
-    name: "STEM Ventures India",
-    type: "Vendor",
-    city: "Pune",
-    state: "Maharashtra",
-    status: "Working",
-    description:
-      "Supplier of STEM lab equipment, robotics kits, and classroom learning solutions for schools and institutions across India.",
-    contact: "sales@stemventures.in",
-    phone: "+91-20-2345-6789",
-    website: "https://stemventures.in",
-    facilities: ["Robotics", "Electronics Lab", "Testing Equipment"],
-  },
-  {
-    id: 5,
-    name: "ATAL Innovation Centre Chennai",
-    type: "ATAL Lab",
-    city: "Chennai",
-    state: "Tamil Nadu",
-    status: "Working",
-    description:
-      "Innovation centre nurturing early-stage hardware startups with mentorship, prototyping facilities, and incubation support.",
-    contact: "info@aicchennai.org",
-    phone: "+91-44-3456-7890",
-    website: "https://aicchennai.org",
-    facilities: ["3D Printing", "PCB Fabrication", "Electronics Lab", "VR/AR Equipment"],
-  },
-  {
-    id: 6,
-    name: "Maker's Asylum",
-    type: "Makerspace",
-    city: "Mumbai",
-    state: "Maharashtra",
-    status: "Working",
-    description:
-      "A hands-on innovation space running fellowships, bootcamps, and open lab hours focused on solving real-world problems through making.",
-    contact: "connect@makersasylum.com",
-    phone: "+91-22-9876-5432",
-    website: "https://makersasylum.com",
-    facilities: ["Laser Cutting", "CNC Machines", "Metal Workshop", "Wood Workshop"],
-  },
-  {
-    id: 7,
-    name: "ATAL Tinkering Lab — Govt. School Jaipur",
-    type: "ATAL Lab",
-    city: "Jaipur",
-    state: "Rajasthan",
-    status: "Planned",
-    description:
-      "An upcoming ATAL Tinkering Lab set to bring hands-on STEM learning to government school students in the region.",
-    contact: "atl.jaipur@gov.in",
-    phone: "+91-141-2233-4455",
-    website: "https://atl.gov.in",
-    facilities: ["Robotics", "Electronics Lab"],
-  },
-  {
-    id: 8,
-    name: "Hyderabad Hardware Hub",
-    type: "Makerspace",
-    city: "Hyderabad",
-    state: "Telangana",
-    status: "Temporarily Closed",
-    description:
-      "A fabrication-focused makerspace currently closed for facility upgrades. Reopening planned with expanded CNC and PCB capabilities.",
-    contact: "team@hwhub.in",
-    phone: "+91-40-6677-8899",
-    website: "https://hwhub.in",
-    facilities: ["CNC Machines", "PCB Fabrication", "3D Printing"],
-  },
-  {
-    id: 9,
-    name: "EduTech Instruments Pvt. Ltd.",
-    type: "Vendor",
-    city: "Ahmedabad",
-    state: "Gujarat",
-    status: "Working",
-    description:
-      "Manufacturer and distributor of laboratory instruments and STEM teaching aids for educational institutions.",
-    contact: "support@edutechinstruments.com",
-    phone: "+91-79-5566-7788",
-    website: "https://edutechinstruments.com",
-    facilities: ["Testing Equipment", "Electronics Lab"],
-  },
-  {
-    id: 10,
-    name: "Kolkata Robotics Lab",
-    type: "Makerspace",
-    city: "Kolkata",
-    state: "West Bengal",
-    status: "Permanently Closed",
-    description:
-      "A former community robotics lab that has ceased operations. Listing retained for historical reference.",
-    contact: "archive@kolkatarobotics.in",
-    phone: "+91-33-1122-3344",
-    website: "https://kolkatarobotics.in",
-    facilities: ["Robotics", "Electronics Lab"],
-  },
-];
+/** Maps a resource status to a hex color for map markers / dots. */
+export function statusColor(status: ResourceStatus): string {
+  switch (status) {
+    case "Working":
+      return "#15803d"; // green
+    case "Planned":
+      return "#2563eb"; // blue
+    case "Temporarily Closed":
+      return "#d97706"; // orange
+    case "Permanently Closed":
+      return "#b91c1c"; // red
+    default:
+      return "#6b7280"; // gray
+  }
+}
 
-/** Look up a single resource by its id. Returns undefined if not found. */
-export function getResource(id: number): Resource | undefined {
-  return resources.find((r) => r.id === id);
+/** Great-circle distance in kilometres between two lat/lng points. */
+export function distanceKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Resources nearest to the given one, sorted by distance.
+ * Prefers the same type; falls back to any type if too few same-type matches.
+ * @param resource the reference resource
+ * @param all      the full pool of resources to search within
+ * @param limit    maximum results to return
+ */
+export function nearbyResources(
+  resource: Resource,
+  all: Resource[],
+  limit = 6
+): Array<Resource & { distanceKm: number }> {
+  const withDist = all
+    .filter((r) => r.id !== resource.id)
+    .map((r) => ({ ...r, distanceKm: distanceKm(resource.lat, resource.lng, r.lat, r.lng) }))
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+
+  const sameType = withDist.filter((r) => r.type === resource.type);
+  const pool = sameType.length >= limit ? sameType : withDist;
+  return pool.slice(0, limit);
 }
