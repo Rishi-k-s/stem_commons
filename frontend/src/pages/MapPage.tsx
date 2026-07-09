@@ -8,7 +8,7 @@ import "leaflet/dist/leaflet.css";
 import { Header } from "../components/common/Header";
 import { theme } from "../styles/theme";
 import { type Resource } from "../data/resources";
-import { fetchResources } from "../lib/api";
+import { fetchMapPins, fetchResource, type MapPin } from "../lib/api";
 import { markerIcon, clusterIcon } from "../components/map/markerIcons";
 import { MapDetailPanel } from "../components/map/MapDetailPanel";
 import { MapFilterPanel, type MapFilters } from "../components/map/MapFilterPanel";
@@ -60,38 +60,31 @@ export function MapPage() {
   const [filterWidth, setFilterWidth] = React.useState(280);
   const [detailWidth, setDetailWidth] = React.useState(360);
 
-  const [resources, setResources] = React.useState<Resource[]>([]);
+  const [pins, setPins] = React.useState<MapPin[]>([]);
 
-  // Load all resources from the backend once on mount.
   React.useEffect(() => {
     let active = true;
-    fetchResources(500, true)
-      .then((data) => active && setResources(data))
-      .catch(() => active && setResources([]));
-    return () => {
-      active = false;
-    };
+    fetchMapPins()
+      .then((data) => active && setPins(data))
+      .catch(() => active && setPins([]));
+    return () => { active = false; };
   }, []);
 
   const filtered = React.useMemo(() => {
     const q = filters.query.trim().toLowerCase();
-    return resources.filter((r) => {
+    return pins.filter((r) => {
       const matchesQuery =
         !q ||
         r.name.toLowerCase().includes(q) ||
         r.city.toLowerCase().includes(q) ||
         r.state.toLowerCase().includes(q) ||
-        r.type.toLowerCase().includes(q) ||
-        r.facilities.some((f) => f.toLowerCase().includes(q));
+        r.type.toLowerCase().includes(q);
       const matchesState = filters.states.size === 0 || filters.states.has(r.state);
-      const matchesType = filters.types.size === 0 || filters.types.has(r.type);
-      const matchesStatus = filters.statuses.size === 0 || filters.statuses.has(r.status);
-      const matchesFacilities =
-        filters.facilities.size === 0 ||
-        r.facilities.some((f) => filters.facilities.has(f));
-      return matchesQuery && matchesState && matchesType && matchesStatus && matchesFacilities;
+      const matchesType = filters.types.size === 0 || filters.types.has(r.type as never);
+      const matchesStatus = filters.statuses.size === 0 || filters.statuses.has(r.status as never);
+      return matchesQuery && matchesState && matchesType && matchesStatus;
     });
-  }, [resources, filters]);
+  }, [pins, filters]);
 
   const activeFilterCount =
     (filters.query ? 1 : 0) +
@@ -313,7 +306,7 @@ export function MapPage() {
                     position={[r.lat, r.lng]}
                     icon={markerIcon(r, isSelected)}
                     zIndexOffset={isSelected ? 1000 : 0}
-                    eventHandlers={{ click: () => setSelected(r) }}
+                    eventHandlers={{ click: () => { fetchResource(r.id).then((full) => full && setSelected(full)); } }}
                   />
                 );
               })}

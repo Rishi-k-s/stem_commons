@@ -82,6 +82,21 @@ export async function fetchResources(
   return page.data.map(toResource);
 }
 
+export interface MapPin {
+  id: number;
+  name: string;
+  type: string;
+  status: string;
+  city: string;
+  state: string;
+  lat: number;
+  lng: number;
+}
+
+export async function fetchMapPins(): Promise<MapPin[]> {
+  return getJSON<MapPin[]>("/resources/map-pins");
+}
+
 export interface ResourcePage {
   data: Resource[];
   total: number;

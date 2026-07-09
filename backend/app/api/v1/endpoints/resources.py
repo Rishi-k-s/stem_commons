@@ -15,6 +15,7 @@ from app.services import resource_service
 def _invalidate_resource_caches() -> None:
     """Clear caches that become stale after any resource write."""
     cache_delete("stem:stats")
+    cache_delete("stem:map-pins")
     cache_delete("stem:states")
     cache_delete_prefix("stem:districts")
 
@@ -114,6 +115,25 @@ def submit_resource(payload: ResourceSubmit, db: Session = Depends(get_db)):
     db.refresh(resource)
     _invalidate_resource_caches()
     return ResourceOut.from_model(resource)
+
+
+@router.get("/map-pins")
+def map_pins(db: Session = Depends(get_db)):
+    """Lightweight endpoint — returns only the fields needed to render map pins."""
+    KEY = "stem:map-pins"
+    if (cached := cache_get(KEY)) is not None:
+        return cached
+    rows = (
+        db.query(Resource.id, Resource.name, Resource.type, Resource.status, Resource.city, Resource.state, Resource.latitude, Resource.longitude)
+        .filter(Resource.is_public.is_(True), Resource.is_verified.is_(True), Resource.latitude.isnot(None))
+        .all()
+    )
+    result = [
+        {"id": r.id, "name": r.name, "type": r.type, "status": r.status, "city": r.city, "state": r.state, "lat": float(r.latitude), "lng": float(r.longitude)}
+        for r in rows
+    ]
+    cache_set(KEY, result, ttl=300)
+    return result
 
 
 @router.get("/stats")
