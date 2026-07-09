@@ -72,15 +72,6 @@ async function getJSON<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/**
- * Fetch resources (the backend paginates; we request a large page so the
- * map and list can filter/sort client-side as before).
- *
- * @param limit    page size to request.
- * @param verified optional verification filter — `true` returns only
- *                 approved resources, `false` only pending ones, omitted
- *                 returns everything public.
- */
 export async function fetchResources(
   limit = 500,
   verified?: boolean
@@ -89,6 +80,26 @@ export async function fetchResources(
   if (verified !== undefined) params.set("verified", String(verified));
   const page = await getJSON<Page<ApiResource>>(`/resources?${params}`);
   return page.data.map(toResource);
+}
+
+export interface ResourcePage {
+  data: Resource[];
+  total: number;
+  pages: number;
+  page: number;
+}
+
+export async function fetchResourcesPage(
+  page = 1,
+  limit = 50,
+  q?: string,
+  verified?: boolean
+): Promise<ResourcePage> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (q) params.set("q", q);
+  if (verified !== undefined) params.set("verified", String(verified));
+  const result = await getJSON<Page<ApiResource>>(`/resources?${params}`);
+  return { data: result.data.map(toResource), total: result.total, pages: result.pages, page: result.page };
 }
 
 /** Fetch resources awaiting admin review (unverified). */
