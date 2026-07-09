@@ -12,6 +12,7 @@ import sys
 
 from sqlalchemy.orm import Session
 
+import app.db.base  # noqa: F401 — registers all models so relationships resolve
 from app.db.session import SessionLocal
 from app.models.resource import Resource
 
