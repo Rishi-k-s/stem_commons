@@ -8,10 +8,12 @@ Usage (inside backend container):
 Nominatim ToS: 1 req/sec, must set a User-Agent.
 """
 
+import json
 import random
 import time
+import urllib.parse
+import urllib.request
 
-import requests
 from sqlalchemy import text
 
 import app.db.base  # noqa: F401
@@ -19,21 +21,18 @@ from app.db.session import SessionLocal
 
 JITTER = 0.08          # degrees (~8 km) max offset per lab
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-HEADERS = {"User-Agent": "STEMCommons/1.0 (stem.rishikrishna.com)"}
 
 
 def geocode_district(district: str, state: str) -> tuple[float, float] | None:
-    query = f"{district}, {state}, India"
+    query = f"{district}, {state}, India" if district else f"{state}, India"
+    params = urllib.parse.urlencode({"q": query, "format": "json", "limit": 1})
+    url = f"{NOMINATIM_URL}?{params}"
+    req = urllib.request.Request(url, headers={"User-Agent": "STEMCommons/1.0 (stem.rishikrishna.com)"})
     try:
-        r = requests.get(
-            NOMINATIM_URL,
-            params={"q": query, "format": "json", "limit": 1},
-            headers=HEADERS,
-            timeout=10,
-        )
-        data = r.json()
-        if data:
-            return float(data[0]["lat"]), float(data[0]["lon"])
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+            if data:
+                return float(data[0]["lat"]), float(data[0]["lon"])
     except Exception as e:
         print(f"  Nominatim error for {query}: {e}")
     return None
