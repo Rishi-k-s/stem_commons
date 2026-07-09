@@ -115,10 +115,8 @@ export function AdminDashboard() {
   const handleVerify = async (r: Resource) => {
     setVerifyingId(r.id);
     try {
-      const updated = await verifyResource(r.id);
-      setResources((prev) =>
-        prev.map((x) => (x.id === r.id ? { ...x, isVerified: updated.isVerified } : x))
-      );
+      await verifyResource(r.id);
+      reload();
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Failed to verify resource.");
     } finally {
@@ -169,7 +167,7 @@ export function AdminDashboard() {
     if (!window.confirm(`Delete "${r.name}"? This cannot be undone.`)) return;
     try {
       await deleteResource(r.id);
-      setResources((prev) => prev.filter((x) => x.id !== r.id));
+      reload();
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Failed to delete resource.");
     }
