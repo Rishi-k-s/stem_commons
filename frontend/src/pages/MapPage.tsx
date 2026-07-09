@@ -321,7 +321,7 @@ export function MapPage() {
             mobile={isMobile}
             onResize={(dx) => setDetailWidth((w) => clamp(w + dx, DETAIL_MIN, DETAIL_MAX))}
             onClose={() => setSelected(null)}
-            onSelectNearby={setSelected}
+            onSelectNearby={(r) => fetchResource(r.id).then((full) => full && setSelected(full))}
           />
         </div>
 
