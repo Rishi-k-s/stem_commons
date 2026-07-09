@@ -316,7 +316,7 @@ export function MapPage() {
           {/* Slide-in / bottom-sheet detail panel */}
           <MapDetailPanel
             resource={selected}
-            allResources={resources}
+            allResources={pins as unknown as Resource[]}
             width={detailWidth}
             mobile={isMobile}
             onResize={(dx) => setDetailWidth((w) => clamp(w + dx, DETAIL_MIN, DETAIL_MAX))}
