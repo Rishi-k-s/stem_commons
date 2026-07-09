@@ -60,22 +60,6 @@ services:
       timeout: 5s
       retries: 5
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
-    container_name: stem_commons_web
-    ports:
-      - "5173:5173"
-    environment:
-      VITE_API_URL: http://localhost:8000/api/v1
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      - backend
-    networks:
-      - stem_network
 
 volumes:
   postgres_data:
