@@ -1,22 +1,23 @@
 import React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Search, X } from "lucide-react";import { Header } from "../components/common/Header";
+import { ArrowLeft, Search, X } from "lucide-react";
+import { Header } from "../components/common/Header";
 import { Button } from "../components/common/Button";
 import { Badge } from "../components/common/Badge";
 import { theme } from "../styles/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { useSearchAutocomplete } from "../hooks/useSearchAutocomplete";
-import { fetchResources } from "../lib/api";
+import { fetchResourcesPage, type ResourcePage } from "../lib/api";
 import {
   statusVariant,
   RESOURCE_TYPES,
   RESOURCE_STATUSES,
-  type Resource,
   type ResourceType,
   type ResourceStatus,
 } from "../data/resources";
 
 type SortKey = "name-asc" | "name-desc" | "recent";
+const PAGE_SIZE = 50;
 
 export function ResourcesPage() {
   const navigate = useNavigate();
@@ -24,78 +25,59 @@ export function ResourcesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [query, setQuery] = React.useState(searchParams.get("q") ?? "");
-  const [typeFilters, setTypeFilters] = React.useState<Set<ResourceType>>(new Set());
-  const [statusFilters, setStatusFilters] = React.useState<Set<ResourceStatus>>(new Set());
+  const [debouncedQuery, setDebouncedQuery] = React.useState(query);
+  const [typeFilter, setTypeFilter] = React.useState<ResourceType | "">("");
+  const [statusFilter, setStatusFilter] = React.useState<ResourceStatus | "">("");
   const [sort, setSort] = React.useState<SortKey>("name-asc");
+  const [page, setPage] = React.useState(1);
 
   const search = useSearchAutocomplete({ value: query, onChange: setQuery });
 
-  const [resources, setResources] = React.useState<Resource[]>([]);
+  const [result, setResult] = React.useState<ResourcePage>({ data: [], total: 0, pages: 0, page: 1 });
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Load resources from the backend once on mount.
+  // Debounce search query
   React.useEffect(() => {
-    let active = true;
-    setLoading(true);
-    fetchResources(500, true)
-      .then((data) => {
-        if (active) {
-          setResources(data);
-          setError(null);
-        }
-      })
-      .catch(() => active && setError("Could not load resources. Is the API running?"))
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-  }, []);
+    const t = setTimeout(() => setDebouncedQuery(query), 400);
+    return () => clearTimeout(t);
+  }, [query]);
 
-  // Keep the URL ?q= in sync so the search is shareable / survives reloads.
+  // Reset to page 1 whenever filters/sort change
+  React.useEffect(() => { setPage(1); }, [debouncedQuery, typeFilter, statusFilter, sort]);
+
+  // Sync ?q= in URL
   React.useEffect(() => {
     const next = new URLSearchParams(searchParams);
-    if (query) next.set("q", query);
-    else next.delete("q");
+    if (query) next.set("q", query); else next.delete("q");
     setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  const toggle = <T,>(set: Set<T>, value: T): Set<T> => {
-    const next = new Set(set);
-    next.has(value) ? next.delete(value) : next.add(value);
-    return next;
-  };
+  // Fetch from server
+  React.useEffect(() => {
+    let active = true;
+    setLoading(true);
+    fetchResourcesPage(
+      page, PAGE_SIZE,
+      debouncedQuery || undefined,
+      true,
+      typeFilter || undefined,
+      statusFilter || undefined,
+      sort,
+    )
+      .then((data) => { if (active) { setResult(data); setError(null); } })
+      .catch(() => active && setError("Could not load resources. Is the API running?"))
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [page, debouncedQuery, typeFilter, statusFilter, sort]);
 
-  const filtered = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = resources.filter((r) => {
-      const matchesQuery =
-        !q ||
-        r.name.toLowerCase().includes(q) ||
-        r.city.toLowerCase().includes(q) ||
-        r.state.toLowerCase().includes(q) ||
-        r.type.toLowerCase().includes(q) ||
-        r.facilities.some((f) => f.toLowerCase().includes(q));
-      const matchesType = typeFilters.size === 0 || typeFilters.has(r.type);
-      const matchesStatus = statusFilters.size === 0 || statusFilters.has(r.status);
-      return matchesQuery && matchesType && matchesStatus;
-    });
-
-    return [...list].sort((a, b) => {
-      if (sort === "name-asc") return a.name.localeCompare(b.name);
-      if (sort === "name-desc") return b.name.localeCompare(a.name);
-      return b.id - a.id; // recent
-    });
-  }, [resources, query, typeFilters, statusFilters, sort]);
-
-  const hasActiveFilters =
-    query.trim() !== "" || typeFilters.size > 0 || statusFilters.size > 0;
+  const hasActiveFilters = query.trim() !== "" || typeFilter !== "" || statusFilter !== "";
 
   const clearAll = () => {
     setQuery("");
-    setTypeFilters(new Set());
-    setStatusFilters(new Set());
+    setTypeFilter("");
+    setStatusFilter("");
   };
 
   const chip = (active: boolean): React.CSSProperties => ({
@@ -222,8 +204,8 @@ export function ResourcesPage() {
               {RESOURCE_TYPES.map((t) => (
                 <span
                   key={t}
-                  onClick={() => setTypeFilters((s) => toggle(s, t))}
-                  style={chip(typeFilters.has(t))}
+                  onClick={() => setTypeFilter((v) => v === t ? "" : t)}
+                  style={chip(typeFilter === t)}
                 >
                   {t.toUpperCase()}
                 </span>
@@ -237,8 +219,8 @@ export function ResourcesPage() {
               {RESOURCE_STATUSES.map((s) => (
                 <span
                   key={s}
-                  onClick={() => setStatusFilters((set) => toggle(set, s))}
-                  style={chip(statusFilters.has(s))}
+                  onClick={() => setStatusFilter((v) => v === s ? "" : s)}
+                  style={chip(statusFilter === s)}
                 >
                   {s.toUpperCase()}
                 </span>
@@ -268,16 +250,9 @@ export function ResourcesPage() {
               color: theme.colors.textMuted,
             }}
           >
-            {filtered.length} {filtered.length === 1 ? "RESULT" : "RESULTS"}
-            {hasActiveFilters && (
-              <span
-                onClick={clearAll}
-                style={{
-                  marginLeft: "14px",
-                  color: theme.colors.primary,
-                  cursor: "pointer",
-                }}
-              >
+            {loading ? "LOADING…" : `${result.total.toLocaleString()} ${result.total === 1 ? "RESULT" : "RESULTS"}`}
+            {hasActiveFilters && !loading && (
+              <span onClick={clearAll} style={{ marginLeft: "14px", color: theme.colors.primary, cursor: "pointer" }}>
                 CLEAR ALL
               </span>
             )}
@@ -307,55 +282,29 @@ export function ResourcesPage() {
         </div>
 
         {/* Resources Grid / loading / error / empty state */}
-        {loading ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "64px 24px",
-              fontFamily: theme.fonts.mono,
-              fontSize: "0.85rem",
-              letterSpacing: theme.letterSpacing.wide,
-              color: theme.colors.textMuted,
-            }}
-          >
-            LOADING RESOURCES…
-          </div>
-        ) : error ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "64px 24px",
-              fontFamily: theme.fonts.body,
-              color: theme.colors.error,
-            }}
-          >
+        {error ? (
+          <div style={{ textAlign: "center", padding: "64px 24px", fontFamily: theme.fonts.body, color: theme.colors.error }}>
             <p style={{ fontSize: "1rem", margin: 0 }}>{error}</p>
           </div>
-        ) : filtered.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "64px 24px",
-              fontFamily: theme.fonts.body,
-              color: theme.colors.textMuted,
-            }}
-          >
+        ) : loading ? (
+          <div style={{ textAlign: "center", padding: "64px 24px", fontFamily: theme.fonts.mono, fontSize: "0.85rem", letterSpacing: theme.letterSpacing.wide, color: theme.colors.textMuted }}>
+            LOADING RESOURCES…
+          </div>
+        ) : result.data.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "64px 24px", fontFamily: theme.fonts.body, color: theme.colors.textMuted }}>
             <p style={{ fontSize: "1rem", margin: 0 }}>No resources match your search.</p>
-            <Button onClick={clearAll} variant="outline" size="sm" style={{ marginTop: "16px" }}>
-              CLEAR FILTERS
-            </Button>
+            <Button onClick={clearAll} variant="outline" size="sm" style={{ marginTop: "16px" }}>CLEAR FILTERS</Button>
           </div>
         ) : (
+          <>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "repeat(auto-fill, minmax(300px, 1fr))",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))",
               gap: isMobile ? "16px" : "24px",
             }}
           >
-            {filtered.map((resource) => (
+            {result.data.map((resource) => (
               <div
                 key={resource.id}
                 onClick={() => navigate(`/resource/${resource.id}`)}
@@ -427,6 +376,46 @@ export function ResourcesPage() {
               </div>
             ))}
           </div>
+
+          {/* Pagination */}
+          {result.pages > 1 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "40px", flexWrap: "wrap", gap: "12px" }}>
+              <span style={{ fontFamily: theme.fonts.mono, fontSize: "0.68rem", letterSpacing: theme.letterSpacing.wide, color: theme.colors.textMuted }}>
+                PAGE {result.page} OF {result.pages}
+              </span>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                  ← PREV
+                </Button>
+                {/* Page number pills — show up to 5 around current page */}
+                {Array.from({ length: Math.min(result.pages, 5) }, (_, i) => {
+                  const start = Math.max(1, Math.min(result.page - 2, result.pages - 4));
+                  return start + i;
+                }).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => { setPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    style={{
+                      fontFamily: theme.fonts.mono,
+                      fontSize: "0.7rem",
+                      padding: "6px 10px",
+                      border: `1px solid ${p === page ? theme.colors.primary : theme.colors.border}`,
+                      background: p === page ? theme.colors.primary : theme.colors.surface,
+                      color: p === page ? theme.colors.textInverse : theme.colors.text,
+                      cursor: "pointer",
+                      minWidth: "36px",
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <Button variant="outline" size="sm" disabled={page >= result.pages} onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                  NEXT →
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </main>
 

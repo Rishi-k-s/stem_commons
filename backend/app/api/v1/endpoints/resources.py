@@ -37,6 +37,7 @@ def list_resources(
     ),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=1000),
+    sort: str = Query("name-asc", description="name-asc | name-desc | recent"),
 ):
     query = db.query(Resource).filter(Resource.is_public.is_(True))
 
@@ -66,8 +67,14 @@ def list_resources(
             query = query.filter(Resource.facilities.contains([f]))
 
     total = query.order_by(None).count()
+
+    order = (
+        Resource.name.desc() if sort == "name-desc"
+        else Resource.created_at.desc() if sort == "recent"
+        else Resource.name.asc()
+    )
     rows = (
-        query.order_by(Resource.name.asc())
+        query.order_by(order)
         .offset((page - 1) * limit)
         .limit(limit)
         .all()

@@ -93,11 +93,17 @@ export async function fetchResourcesPage(
   page = 1,
   limit = 50,
   q?: string,
-  verified?: boolean
+  verified?: boolean,
+  type?: string,
+  status?: string,
+  sort?: string,
 ): Promise<ResourcePage> {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (q) params.set("q", q);
   if (verified !== undefined) params.set("verified", String(verified));
+  if (type) params.set("type", type);
+  if (status) params.set("status", status);
+  if (sort) params.set("sort", sort);
   const result = await getJSON<Page<ApiResource>>(`/resources?${params}`);
   return { data: result.data.map(toResource), total: result.total, pages: result.pages, page: result.page };
 }
