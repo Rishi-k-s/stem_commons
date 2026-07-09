@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, MapPin } from "lucide-react";
+import GitHubButton from "react-github-btn";
 import { Header } from "../components/common/Header";
 import { Button } from "../components/common/Button";
 import { SearchBar } from "../components/search/SearchBar";
@@ -232,6 +233,28 @@ export function LandingPage() {
           ))}
         </div>
       </main>
+
+      {/* GitHub star — bottom-right above footer */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: isMobile ? "56px" : "52px",
+          right: "20px",
+          zIndex: 50,
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <GitHubButton
+          href="https://github.com/Rishi-k-s/stem_commons"
+          data-color-scheme="no-preference: light; light: light; dark: dark;"
+          data-size="large"
+          data-show-count="true"
+          aria-label="Star Rishi-k-s/stem_commons on GitHub"
+        >
+          Star
+        </GitHubButton>
+      </div>
 
       {/* Footer */}
       <footer
